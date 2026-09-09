@@ -1,6 +1,6 @@
 /* Google Apps Script 웹앱 배포 URL을 여기에 붙여넣으세요.
    비워두면 데모 모드로 동작합니다(체크가 저장되지 않고 새로고침 시 초기화). */
-window.CHECKLIST_API = "";
+window.CHECKLIST_API = "https://script.google.com/macros/s/AKfycbw4nfdgwzjtOamYHVecD8c8WPUBB7ULUrrbIwIOGROlm0CI6fTXTxWGZR9tqVnzStTK/exec";
 
 /* 스프레드시트 바로가기(선택) */
 window.CHECKLIST_SHEET_URL =
