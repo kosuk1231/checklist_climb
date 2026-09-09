@@ -1,20 +1,22 @@
 /**
- * 2026 서울사회복지사 등반대회 — 준비물 3단 체크리스트 API
+ * 2026 서울사회복지사 등반대회 — 준비물 3단 체크리스트 API (v2)
  *
- * 배포 방법
+ * 배포
  *  1) script.google.com 새 프로젝트 → 이 파일 내용 붙여넣기
- *  2) 실행 → seed  (시트 생성 + 72항목 입력, 최초 1회)
- *  3) 배포 → 새 배포 → 유형: 웹 앱
- *       - 실행: 나(본인)
- *       - 액세스: 모든 사용자
- *  4) 발급된 /exec URL 을 public/config.js 의 CHECKLIST_API 에 붙여넣기
+ *  2) 아래 ADMIN_KEY 를 원하는 값으로 바꾸기
+ *  3) 실행 → seed  (최초 1회, 시트 생성 + 72항목 입력)
+ *  4) 배포 → 새 배포 → 웹 앱 / 실행: 나 / 액세스: 모든 사용자
+ *  5) /exec URL 을 public/config.js 에 붙여넣기
  *
- * 프런트엔드는 JSONP(callback 파라미터)로 호출하므로 CORS 설정이 필요 없습니다.
+ * ※ 코드를 고친 뒤에는 반드시 "배포 관리 → 새 버전"으로 재배포해야 반영됩니다.
  */
 
 var SHEET_ID   = '1PQy4OPfn3ldPuudmJwKzJtiOm8itfUPEpORyYqWfXlo';
 var SHEET_NAME = '준비물체크리스트';
 var LOG_NAME   = '체크로그';
+
+/** 관리자 PIN — 반드시 바꿔서 쓰세요 */
+var ADMIN_KEY = 'sasw2026';
 
 var HEADERS = [
   'id', '구분', '준비물', '수량', '담당',
@@ -23,9 +25,27 @@ var HEADERS = [
   '갱신시각', '메모'
 ];
 
-var STAGE_COL = { '0910': 6, '0911': 7, '0912': 8 };   // 1-based
+var STAGE_COL = { '0910': 6, '0911': 7, '0912': 8 };
 var ACTOR_COL = { '0910': 9, '0911': 10, '0912': 11 };
 var TIME_COL  = 12;
+var MEMO_COL  = 13;
+
+/** 구분별 id 접두어 */
+var PREFIX = {
+  '접수·명단': 'RCP',
+  '기념품·배부': 'GFT',
+  '스탬프·완주인증': 'STP',
+  '경품·추첨': 'PRZ',
+  '무대·행사장': 'STG',
+  '부스-공정위원회': 'BFR',
+  '부스-청년위원회': 'BYT',
+  '부스-열매 만남존': 'BYM',
+  '부스-어린이 이벤트': 'BKD',
+  '부스-함께하는 단체': 'BTG',
+  '등반로 1·2·3지점': 'TRL',
+  '철수·정리': 'TRD',
+  '기타': 'ETC'
+};
 
 /* ────────────────────────── 라우팅 ────────────────────────── */
 
@@ -34,11 +54,24 @@ function doGet(e) {
   var out;
   try {
     switch (p.action) {
-      case 'seed':  out = { ok: true, data: seedRows(p.force === '1') }; break;
-      case 'set':   out = { ok: true, data: setCheck(p.id, p.stage, p.value === '1', p.actor || '') }; break;
-      case 'note':  out = { ok: true, data: setNote(p.id, p.text || '') }; break;
-      case 'stats': out = { ok: true, data: stats() }; break;
-      default:      out = { ok: true, data: listRows() };
+      /* 공개 */
+      case 'set':   out = ok(setCheck(p.id, p.stage, p.value === '1', p.actor || '')); break;
+      case 'note':  out = ok(setNote(p.id, p.text || '')); break;
+      case 'stats': out = ok(stats()); break;
+
+      /* 관리자 */
+      case 'auth':       guard(p); out = ok({ admin: true }); break;
+      case 'add':        guard(p); out = ok(addItem(p)); break;
+      case 'update':     guard(p); out = ok(updateItem(p)); break;
+      case 'remove':     guard(p); out = ok(removeItem(p.id)); break;
+      case 'move':       guard(p); out = ok(moveItem(p.id, p.dir)); break;
+      case 'renameWho':  guard(p); out = ok(renameField(5, p.from, p.to)); break;
+      case 'renameCat':  guard(p); out = ok(renameField(2, p.from, p.to)); break;
+      case 'resetStage': guard(p); out = ok(resetStage(p.stage)); break;
+      case 'export':     guard(p); out = ok({ code: exportItemsJs() }); break;
+      case 'seed':       guard(p); out = ok(seedRows(p.force === '1')); break;
+
+      default: out = ok(listRows());
     }
   } catch (err) {
     out = { ok: false, error: String(err && err.message ? err.message : err) };
@@ -50,19 +83,21 @@ function doPost(e) {
   var p = {};
   try { p = JSON.parse((e.postData && e.postData.contents) || '{}'); } catch (ignore) {}
   var out;
-  try {
-    out = { ok: true, data: setCheck(p.id, p.stage, !!p.value, p.actor || '') };
-  } catch (err) {
-    out = { ok: false, error: String(err) };
-  }
+  try { out = ok(setCheck(p.id, p.stage, !!p.value, p.actor || '')); }
+  catch (err) { out = { ok: false, error: String(err) }; }
   return reply(out, null);
+}
+
+function ok(data) { return { ok: true, data: data }; }
+
+function guard(p) {
+  if (String(p.key || '') !== ADMIN_KEY) throw new Error('관리자 인증에 실패했습니다');
 }
 
 function reply(obj, callback) {
   var json = JSON.stringify(obj);
   if (callback) {
-    return ContentService
-      .createTextOutput(callback + '(' + json + ');')
+    return ContentService.createTextOutput(callback + '(' + json + ');')
       .setMimeType(ContentService.MimeType.JAVASCRIPT);
   }
   return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
@@ -92,11 +127,15 @@ function logSheet() {
   var sh = ss.getSheetByName(LOG_NAME);
   if (!sh) {
     sh = ss.insertSheet(LOG_NAME);
-    sh.getRange(1, 1, 1, 5).setValues([['시각', 'id', '단계', '값', '확인자']])
+    sh.getRange(1, 1, 1, 6).setValues([['시각', 'id', '단계', '값', '확인자', '비고']])
       .setFontWeight('bold');
     sh.setFrozenRows(1);
   }
   return sh;
+}
+
+function audit(action, id, detail, who) {
+  logSheet().appendRow([new Date(), id || '', action, detail || '', who || '', '관리']);
 }
 
 function listRows() {
@@ -109,13 +148,10 @@ function listRows() {
     var r = v[i];
     if (!r[0]) continue;
     out.push({
-      id:   String(r[0]),
-      cat:  String(r[1]),
-      name: String(r[2]),
-      qty:  String(r[3]),
-      who:  String(r[4]),
+      id: String(r[0]), cat: String(r[1]), name: String(r[2]),
+      qty: String(r[3]), who: String(r[4]),
       done: [truthy(r[5]), truthy(r[6]), truthy(r[7])],
-      by:   [String(r[8] || ''), String(r[9] || ''), String(r[10] || '')],
+      by: [String(r[8] || ''), String(r[9] || ''), String(r[10] || '')],
       memo: String(r[12] || '')
     });
   }
@@ -125,7 +161,7 @@ function listRows() {
 function truthy(v) {
   if (v === true) return true;
   var s = String(v).trim().toUpperCase();
-  return s === 'TRUE' || s === 'O' || s === 'Y' || s === '1' || s === 'V' || s === '✔';
+  return s === 'TRUE' || s === 'O' || s === 'Y' || s === '1' || s === 'V';
 }
 
 function rowIndexById(sh, id) {
@@ -138,37 +174,6 @@ function rowIndexById(sh, id) {
   return -1;
 }
 
-function setCheck(id, stage, value, actor) {
-  if (!id) throw new Error('id가 없습니다');
-  if (!STAGE_COL[stage]) throw new Error('단계 값이 잘못되었습니다: ' + stage);
-
-  var lock = LockService.getScriptLock();
-  lock.waitLock(20000);
-  try {
-    var sh = sheet();
-    var row = rowIndexById(sh, id);
-    if (row < 0) throw new Error('항목을 찾을 수 없습니다: ' + id);
-
-    var now = new Date();
-    sh.getRange(row, STAGE_COL[stage]).setValue(value ? true : false);
-    sh.getRange(row, ACTOR_COL[stage]).setValue(value ? (actor || '') : '');
-    sh.getRange(row, TIME_COL).setValue(now);
-
-    logSheet().appendRow([now, id, stage, value ? 'O' : '-', actor || '']);
-    return { id: id, stage: stage, value: value, actor: actor || '' };
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-function setNote(id, text) {
-  var sh = sheet();
-  var row = rowIndexById(sh, id);
-  if (row < 0) throw new Error('항목을 찾을 수 없습니다: ' + id);
-  sh.getRange(row, 13).setValue(text);
-  return { id: id, memo: text };
-}
-
 function stats() {
   var rows = listRows();
   var out = { total: rows.length, stages: {} };
@@ -178,19 +183,210 @@ function stats() {
   return out;
 }
 
-/* ────────────────────────── 시드 ────────────────────────── */
+/* ────────────────────────── 체크 ────────────────────────── */
 
-/** 메뉴에서 직접 실행: 항목만 새로 쓰고 체크 상태는 유지 */
+function setCheck(id, stage, value, actor) {
+  if (!id) throw new Error('id가 없습니다');
+  if (!STAGE_COL[stage]) throw new Error('단계 값이 잘못되었습니다: ' + stage);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var sh = sheet();
+    var row = rowIndexById(sh, id);
+    if (row < 0) throw new Error('항목을 찾을 수 없습니다: ' + id);
+    var now = new Date();
+    sh.getRange(row, STAGE_COL[stage]).setValue(!!value);
+    sh.getRange(row, ACTOR_COL[stage]).setValue(value ? (actor || '') : '');
+    sh.getRange(row, TIME_COL).setValue(now);
+    logSheet().appendRow([now, id, stage, value ? 'O' : '-', actor || '', '']);
+    return { id: id, stage: stage, value: !!value };
+  } finally { lock.releaseLock(); }
+}
+
+function setNote(id, text) {
+  var sh = sheet();
+  var row = rowIndexById(sh, id);
+  if (row < 0) throw new Error('항목을 찾을 수 없습니다: ' + id);
+  sh.getRange(row, MEMO_COL).setValue(text);
+  return { id: id, memo: text };
+}
+
+function resetStage(stage) {
+  if (!STAGE_COL[stage]) throw new Error('단계 값이 잘못되었습니다: ' + stage);
+  var sh = sheet();
+  var last = sh.getLastRow();
+  if (last < 2) return { cleared: 0 };
+  var n = last - 1;
+  var blanks = [], falses = [];
+  for (var i = 0; i < n; i++) { blanks.push(['']); falses.push([false]); }
+  sh.getRange(2, STAGE_COL[stage], n, 1).setValues(falses);
+  sh.getRange(2, ACTOR_COL[stage], n, 1).setValues(blanks);
+  audit('초기화', '', stage, '');
+  return { cleared: n, stage: stage };
+}
+
+/* ────────────────────────── 관리자: 항목 편집 ────────────────────────── */
+
+function nextId(cat) {
+  var pre = PREFIX[cat] || 'NEW';
+  var rows = listRows();
+  var max = 0;
+  rows.forEach(function (r) {
+    var m = String(r.id).match(/^([A-Z]+)(\d+)$/);
+    if (m && m[1] === pre) max = Math.max(max, parseInt(m[2], 10));
+  });
+  var n = String(max + 1);
+  while (n.length < 2) n = '0' + n;
+  return pre + n;
+}
+
+function addItem(p) {
+  var cat  = String(p.cat  || '').trim();
+  var name = String(p.name || '').trim();
+  if (!cat)  throw new Error('구분을 입력해 주세요');
+  if (!name) throw new Error('준비물 이름을 입력해 주세요');
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var sh = sheet();
+    var id = nextId(cat);
+    var rows = listRows();
+
+    /* 같은 구분의 마지막 행 바로 뒤에 끼워 넣기 */
+    var insertAt = sh.getLastRow() + 1;
+    for (var i = rows.length - 1; i >= 0; i--) {
+      if (rows[i].cat === cat) { insertAt = i + 3; break; }
+    }
+    if (insertAt <= sh.getLastRow()) sh.insertRowBefore(insertAt);
+
+    sh.getRange(insertAt, 1, 1, HEADERS.length).setValues([[
+      id, cat, name, String(p.qty || ''), String(p.who || ''),
+      false, false, false, '', '', '', new Date(), String(p.memo || '')
+    ]]);
+    sh.getRange(insertAt, 6, 1, 3).insertCheckboxes();
+    audit('추가', id, cat + ' / ' + name, p.actor || '');
+    return { id: id, row: insertAt };
+  } finally { lock.releaseLock(); }
+}
+
+function updateItem(p) {
+  var id = String(p.id || '');
+  if (!id) throw new Error('id가 없습니다');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var sh = sheet();
+    var row = rowIndexById(sh, id);
+    if (row < 0) throw new Error('항목을 찾을 수 없습니다: ' + id);
+    var changed = [];
+    if (p.cat  !== undefined) { sh.getRange(row, 2).setValue(String(p.cat));  changed.push('구분'); }
+    if (p.name !== undefined) { sh.getRange(row, 3).setValue(String(p.name)); changed.push('준비물'); }
+    if (p.qty  !== undefined) { sh.getRange(row, 4).setValue(String(p.qty));  changed.push('수량'); }
+    if (p.who  !== undefined) { sh.getRange(row, 5).setValue(String(p.who));  changed.push('담당'); }
+    if (p.memo !== undefined) { sh.getRange(row, MEMO_COL).setValue(String(p.memo)); changed.push('메모'); }
+    sh.getRange(row, TIME_COL).setValue(new Date());
+    audit('수정', id, changed.join(','), p.actor || '');
+    return { id: id, changed: changed };
+  } finally { lock.releaseLock(); }
+}
+
+function removeItem(id) {
+  if (!id) throw new Error('id가 없습니다');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var sh = sheet();
+    var row = rowIndexById(sh, id);
+    if (row < 0) throw new Error('항목을 찾을 수 없습니다: ' + id);
+    var name = sh.getRange(row, 3).getValue();
+    sh.deleteRow(row);
+    audit('삭제', id, String(name), '');
+    return { id: id, removed: true };
+  } finally { lock.releaseLock(); }
+}
+
+function moveItem(id, dir) {
+  var up = String(dir) === 'up';
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var sh = sheet();
+    var row = rowIndexById(sh, id);
+    if (row < 0) throw new Error('항목을 찾을 수 없습니다: ' + id);
+    var target = up ? row - 1 : row + 1;
+    if (target < 2 || target > sh.getLastRow()) return { id: id, moved: false };
+
+    var a = sh.getRange(row, 1, 1, HEADERS.length).getValues()[0];
+    var b = sh.getRange(target, 1, 1, HEADERS.length).getValues()[0];
+    sh.getRange(row, 1, 1, HEADERS.length).setValues([b]);
+    sh.getRange(target, 1, 1, HEADERS.length).setValues([a]);
+    sh.getRange(2, 6, sh.getLastRow() - 1, 3).insertCheckboxes();
+    return { id: id, moved: true };
+  } finally { lock.releaseLock(); }
+}
+
+/** 담당자(5열) 또는 구분(2열) 이름을 전체 일괄 변경. to 를 비우면 제거 */
+function renameField(col, from, to) {
+  from = String(from || '').trim();
+  to   = String(to == null ? '' : to).trim();
+  if (!from) throw new Error('바꿀 이름을 입력해 주세요');
+
+  var sh = sheet();
+  var last = sh.getLastRow();
+  if (last < 2) return { count: 0 };
+  var rng = sh.getRange(2, col, last - 1, 1);
+  var v = rng.getValues();
+  var count = 0;
+
+  for (var i = 0; i < v.length; i++) {
+    var cur = String(v[i][0] || '');
+    if (col === 5) {
+      /* 담당은 콤마로 구분된 목록이므로 이름 단위로 교체 */
+      var parts = cur.split(/\s*,\s*/).filter(function (s) { return s.length; });
+      var hit = false, next = [];
+      for (var j = 0; j < parts.length; j++) {
+        if (parts[j] === from) { hit = true; if (to) next.push(to); }
+        else next.push(parts[j]);
+      }
+      if (hit) {
+        var seen = {}, uniq = [];
+        for (var k = 0; k < next.length; k++) {
+          if (!seen[next[k]]) { seen[next[k]] = 1; uniq.push(next[k]); }
+        }
+        v[i][0] = uniq.join(', ');
+        count++;
+      }
+    } else if (cur === from) {
+      v[i][0] = to;
+      count++;
+    }
+  }
+  if (count) rng.setValues(v);
+  audit(col === 5 ? '담당 일괄변경' : '구분 일괄변경', '',
+        from + ' → ' + (to || '(제거)') + ' / ' + count + '건', '');
+  return { count: count, from: from, to: to };
+}
+
+/* ────────────────────────── 내보내기 / 시드 ────────────────────────── */
+
+/** 현재 시트 내용을 public/items.js 형식 코드로 반환 */
+function exportItemsJs() {
+  var rows = listRows();
+  var lines = rows.map(function (r) {
+    return '  ["' + r.id + '","' + r.cat + '","' + r.name.replace(/"/g, '\\"') +
+           '","' + r.qty.replace(/"/g, '\\"') + '","' + r.who + '"]';
+  });
+  return 'window.CHECKLIST_ITEMS = [\n' + lines.join(',\n') + '\n];\n';
+}
+
 function seed()      { return seedRows(false); }
-/** 강제 초기화: 체크 상태까지 모두 지움 */
 function seedReset() { return seedRows(true); }
 
 function seedRows(force) {
   var sh = sheet();
   var keep = {};
-  if (!force) {
-    listRows().forEach(function (r) { keep[r.id] = r; });
-  }
+  if (!force) listRows().forEach(function (r) { keep[r.id] = r; });
   var last = sh.getLastRow();
   if (last > 1) sh.getRange(2, 1, last - 1, HEADERS.length).clearContent();
 
@@ -199,7 +395,7 @@ function seedRows(force) {
     return [
       it[0], it[1], it[2], it[3], it[4],
       k ? k.done[0] : false, k ? k.done[1] : false, k ? k.done[2] : false,
-      k ? k.by[0] : '',      k ? k.by[1] : '',      k ? k.by[2] : '',
+      k ? k.by[0] : '', k ? k.by[1] : '', k ? k.by[2] : '',
       '', k ? k.memo : ''
     ];
   });
@@ -208,7 +404,6 @@ function seedRows(force) {
   return { rows: values.length, kept: Object.keys(keep).length };
 }
 
-/** 스프레드시트를 열었을 때 메뉴 추가 */
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('등반대회 체크리스트')
@@ -218,7 +413,8 @@ function onOpen() {
 }
 
 /* ────────────────────────── 준비물 마스터(72항목) ────────────────────────── */
-/* public/items.js 와 동일한 내용입니다. 수정 시 양쪽 모두 반영하세요. */
+/* seed 전용 초기값입니다. 관리자 화면에서 항목을 고친 뒤에는
+   ?action=export&key=... 로 최신 목록을 받아 여기와 public/items.js 를 갱신하세요. */
 var ITEMS = [
   ['RCP01', '접수·명단', '노트북', '4대(접수 3대+예비 1대)', '이진선, 정소희'],
   ['RCP02', '접수·명단', '사전신청 최종 명단(엑셀 파일 + 출력본)', '각 2부', '정소희'],
