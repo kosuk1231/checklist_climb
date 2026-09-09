@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>9/12 당일 안내 · 2026 서울사회복지사 등반대회</title>
+<meta name="theme-color" content="#1e7a4b" />
+<meta name="robots" content="noindex, nofollow" />
+<link rel="preload" href="fonts/pretendardvariable-dynamic-subset.css" as="style" />
+<link rel="stylesheet" href="theme.css" />
+<style>
+main{padding:0 var(--pad)}
+section[data-view]{display:none}
+section[data-view].on{display:block}
+.wrap{padding-bottom:calc(var(--nav) + 28px + env(safe-area-inset-bottom))}
+html{scroll-padding-top:150px}
+.dday{display:inline-flex;flex-direction:column;align-items:flex-end;gap:3px}
+.dday small{font-size:11.5px;color:var(--faint);font-weight:500}
+.nav{grid-template-columns:repeat(5,1fr)}
+
+
+.wrap{max-width:720px;margin:0 auto;padding-bottom:calc(var(--nav) + 28px + env(safe-area-inset-bottom))}
+
+.mebar{margin-top:11px;display:flex;gap:8px;align-items:center}
+.mebar label{font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap}
+.now-strip{
+  margin-top:10px;background:var(--now-soft);color:var(--now);border:1px solid var(--now-line);border-radius:var(--r-sm);
+  padding:7px 11px;font-size:12.5px;font-weight:600;display:none;align-items:center;gap:8px
+}
+.now-strip::before{content:"";width:8px;height:8px;border-radius:99px;background:var(--now);box-shadow:0 0 0 3px var(--now-line);flex:0 0 auto}
+.now-strip.show{display:flex}
+.now-strip b{font-weight:800;font-variant-numeric:tabular-nums}
+
+/* 공통 */
+main{padding:0 var(--pad)}
+section[data-view]{display:none}
+section[data-view].on{display:block}
+.tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:14px}
+.hint{font-size:12px;color:var(--faint);margin:8px 2px 0}
+
+/* 타임라인 (레일) */
+.tblock{margin-top:16px;display:grid;grid-template-columns:78px 1fr;gap:10px;position:relative}
+.tblock::before{content:"";position:absolute;left:5px;top:22px;bottom:-16px;width:2px;background:var(--line)}
+.tblock:last-of-type::before{display:none}
+.tt{position:relative;padding:10px 0 0 18px;align-self:start;position:sticky;top:132px}
+.tt::before{content:"";position:absolute;left:0;top:15px;width:12px;height:12px;border-radius:99px;background:var(--card);border:2px solid var(--line-2)}
+.tt .h{font-size:15px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.2}
+.tt small{display:block;font-size:12px;font-weight:500;color:var(--faint);margin-top:2px;line-height:1.3;word-break:keep-all}
+.tblock.now .tt::before{background:var(--now);border-color:var(--now);box-shadow:0 0 0 4px var(--now-soft)}
+.tblock.now .tt .h{color:var(--now)}
+.tt .nowtag{display:inline-block;background:var(--now);color:#fff;font-size:10px;font-weight:700;border-radius:999px;padding:2px 7px;margin-top:6px}
+.items{list-style:none;margin:0;padding:0;background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)}
+.items li{border-top:1px solid var(--line);padding:12px 14px;position:relative}
+.items li:first-child{border-top:0}
+.items li.mine{background:var(--accent-soft)}
+.items li.mine::after{content:"내 담당";position:absolute;right:12px;top:12px;font-size:11px;font-weight:700;color:var(--accent-ink);background:#fff;border:1px solid var(--accent-line);border-radius:999px;padding:2px 8px}
+.items li.mine .task{padding-right:64px}
+.place{display:inline-block;font-size:12px;font-weight:600;color:var(--muted);background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:2px 8px;margin-bottom:6px}
+.task{font-size:15.5px;font-weight:600;letter-spacing:-.01em;word-break:keep-all;line-height:1.4}
+.who{font-size:13.5px;color:var(--muted);margin-top:5px;line-height:1.6}
+.who b{color:var(--ink);font-weight:600}
+.who .me{color:var(--accent);font-weight:700}
+.note{font-size:13px;color:var(--text);margin-top:7px;padding:7px 10px;background:var(--card-2);border:1px solid var(--line);border-radius:6px;line-height:1.55}
+
+/* 사람별 */
+.people{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.pchip{
+  appearance:none;border:1px solid var(--line);background:var(--card);color:var(--text);cursor:pointer;
+  border-radius:999px;padding:7px 13px;font-family:inherit;font-size:14px;font-weight:500;min-height:34px;box-shadow:var(--shadow)
+}
+.pchip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.pchip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.pgroup{font-size:11.5px;font-weight:600;color:var(--faint);margin:16px 2px 0;letter-spacing:.02em}
+.pickbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;box-shadow:var(--shadow)}
+.pickname{font-size:17px;font-weight:700;letter-spacing:-.02em;display:flex;align-items:center;gap:10px}
+.pickname::before{content:attr(data-initial);width:32px;height:32px;border-radius:99px;background:var(--accent-soft);color:var(--accent);font-size:13px;font-weight:700;display:grid;place-items:center;border:1px solid var(--accent-line)}
+.matrix{display:grid;gap:8px;margin-top:10px}
+.slot{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;display:grid;grid-template-columns:82px 1fr;gap:12px;box-shadow:var(--shadow)}
+.slot.now{border-color:var(--now-line);background:var(--now-soft)}
+.slot .st{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em;line-height:1.3}
+.slot.now .st{color:var(--now)}
+.slot .st small{display:block;font-size:11px;font-weight:500;color:var(--faint)}
+.slot .sv{font-size:15px;font-weight:500;word-break:keep-all;color:var(--ink)}
+.slot .sv.none{color:var(--faint);font-weight:400}
+.slot .sv i{display:block;font-style:normal;padding-left:12px;position:relative}
+.slot .sv i::before{content:"";position:absolute;left:0;top:9px;width:5px;height:5px;border-radius:99px;background:var(--accent)}
+.slot .sv i+i{margin-top:4px}
+
+/* 개회식 */
+.cue{list-style:none;margin:14px 0 0;padding:0;background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)}
+.cue li{display:grid;grid-template-columns:56px 1fr;gap:12px;padding:12px 14px;border-top:1px solid var(--line)}
+.cue li:first-child{border-top:0}
+.cue .ct{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em;color:var(--accent);padding-top:2px}
+.cue .cn{font-size:15.5px;font-weight:600}
+.cue .cw{font-size:13.5px;color:var(--muted);margin-top:3px}
+.seat{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
+.seat div{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 6px;text-align:center;font-size:12.5px;font-weight:600;color:var(--text)}
+.seat div.c{background:var(--accent-soft);border-color:var(--accent-line);color:var(--accent-ink)}
+.seat div small{display:block;font-size:11px;font-weight:500;color:var(--faint);margin-top:2px}
+.seat div.c small{color:var(--accent);opacity:.8}
+
+/* 장소 */
+.route{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}
+.route span{background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:5px 11px;font-size:12.5px;font-weight:600;color:var(--text)}
+.route span.stamp{background:var(--ok-soft);border-color:var(--ok-line);color:var(--accent-ink)}
+.route i{font-style:normal;color:var(--faint);font-size:12px}
+.booths{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px}
+.booths li{display:grid;grid-template-columns:26px 1fr auto;gap:10px;align-items:center;font-size:14.5px;padding:9px 11px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r-sm);font-weight:500}
+.booths li b{font-size:11px;font-weight:700;color:var(--muted);background:var(--card);border:1px solid var(--line);border-radius:6px;height:22px;display:grid;place-items:center}
+.booths li em{font-style:normal;font-size:11.5px;color:var(--muted);font-weight:500}
+.booths li.rc{background:var(--accent-soft);border-color:var(--accent-line)}
+.booths li.rc b{color:var(--accent);border-color:var(--accent-line)}
+.booths li.rc em{color:var(--accent-ink);font-weight:600}
+.kv{width:100%;border-collapse:collapse;margin-top:8px;font-size:14.5px}
+.kv td{padding:8px 0;border-top:1px solid var(--line);vertical-align:top;color:var(--text)}
+.kv tr:first-child td{border-top:0}
+.kv td:first-child{color:var(--muted);width:34%;font-weight:600;padding-right:10px}
+.steps{list-style:none;margin:8px 0 0;padding:0;counter-reset:s}
+.steps li{position:relative;padding:6px 0 6px 30px;font-size:14.5px;color:var(--text);counter-increment:s}
+.steps li::before{content:counter(s);position:absolute;left:0;top:7px;width:20px;height:20px;border-radius:99px;background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent-line);font-size:11px;font-weight:700;display:grid;place-items:center}
+
+/* 연락망 */
+.contact{width:100%;border-collapse:collapse;margin-top:8px;font-size:14.5px}
+.contact th{font-size:11px;font-weight:600;color:var(--faint);text-align:left;padding:4px 0 8px;letter-spacing:.02em}
+.contact td{padding:9px 0;border-top:1px solid var(--line);vertical-align:top}
+.contact td:first-child{font-weight:600;color:var(--muted)}
+.contact td.r1{color:var(--ink);font-weight:600}
+.contact td.r2,.contact td.r3{color:var(--muted)}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hdr">
+    <div class="brand">
+      <h1>9/12(토) 당일 안내<span>2026 서울사회복지사 등반대회</span></h1>
+      <div class="dday" id="dday"></div>
+    </div>
+    <div class="mebar">
+      <label for="me">내 이름</label>
+      <select id="me" class="field"><option value="">선택하면 내 업무가 표시됩니다</option></select>
+    </div>
+    <div class="now-strip" id="nowStrip"></div>
+  </header>
+
+  <main>
+    <!-- 타임라인 -->
+    <section data-view="time" class="on">
+      <div class="tools">
+        <label class="chip"><input type="checkbox" id="onlyMine" disabled />내 업무만</label>
+        <span class="hint" style="margin:0 0 0 auto;font-size:13px;color:var(--faint)">굵은 이름이 총괄</span>
+      </div>
+      <div id="timeline"></div>
+      <div class="card" style="margin-top:22px">
+        <h2>전날 9/11(금)</h2>
+        <p><b>13:00</b> 빛나눔보호작업장 트럭 대여 — 고석우 (양종철, 이해창, 이재중)</p>
+        <p><b>14:00~15:00</b> 협회 물품 적재 — 전체 직원</p>
+        <p style="margin-top:8px;font-size:12.5px;color:var(--muted)">트럭은 일요일(9/13) 반납이라 토요일 복귀 후 물품을 전부 내려야 합니다.</p>
+      </div>
+    </section>
+
+    <!-- 사람별 -->
+    <section data-view="person">
+      <div id="people"></div>
+      <div id="personBody"></div>
+    </section>
+
+    <!-- 개회식 -->
+    <section data-view="cue">
+      <ol class="cue" id="cue"></ol>
+      <div class="card">
+        <h2>내빈석 배치 <small>무대 정면 기준</small></h2>
+        <div class="seat">
+          <div>김연은<small>연대회의 상임대표</small></div>
+          <div class="c">오세훈<small>서울특별시장</small></div>
+          <div>곽경인<small>협회장</small></div>
+        </div>
+        <p style="margin-top:10px">사회 조은정 부위원장(좌) · 축사석 중앙 · 참여자석 3열</p>
+      </div>
+      <div class="card">
+        <h2>진행 유의</h2>
+        <p>국기에 대한 경례만 하고 애국가는 생략합니다.</p>
+        <p>내빈소개 순서: 서대문구청장 → 국회의원 → 서울시의회</p>
+        <p>경품 이벤트 4등은 시장님이 호명하는 숫자 기준 전화번호 끝자리 추첨. 수령증 서명은 1~3등만(양종철).</p>
+        <p>단체사진 촬영 후 등반 출발. 선발대 기수 홍영호(1지점까지 인솔).</p>
+      </div>
+    </section>
+
+    <!-- 장소 -->
+    <section data-view="place">
+      <div class="card">
+        <h2>등반코스 <small>약 7km · 120분 · 원점회귀</small></h2>
+        <div class="route">
+          <span>벚꽃마당</span><i>→</i>
+          <span class="stamp">1 숲속무대</span><i>→</i>
+          <span>능안정</span><i>→</i>
+          <span class="stamp">2 전망대</span><i>→</i>
+          <span class="stamp">3 너와집쉼터</span><i>→</i>
+          <span>북카페쉼터</span><i>→</i>
+          <span>벚꽃마당</span>
+        </div>
+        <table class="kv">
+          <tr><td>1지점 숲속무대</td><td>유예리, 김도현 · 도장 5개(몰림 예상)</td></tr>
+          <tr><td>2지점 전망대</td><td>나한송, 손채은 · 도장 3~5개, 하산 안내 병행</td></tr>
+          <tr><td>3지점 너와집쉼터</td><td>이해창, 채유리 · 도장 3~5개</td></tr>
+          <tr><td>갈림길</td><td>박소리, 배영미, 이세경, 황재우, 상비군 · 초록 손수건·깃발, 초입 집중</td></tr>
+          <tr><td>철수 동선</td><td>아래팀은 1→2→3지점으로 올라가며, 위팀은 내려오며 표식·쓰레기 수거 후 중간 합류, 전원 도보 하산</td></tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>부스 배치 <small>통행로 좌 → 우</small></h2>
+        <ul class="booths">
+          <li><b>1</b>지역아동센터<em>직능·간식</em></li>
+          <li><b>2</b>정신재활시설<em>직능·간식</em></li>
+          <li><b>3</b>키움센터<em>직능·간식</em></li>
+          <li><b>4</b>직장갑질119<em>박유빈</em></li>
+          <li><b>5</b>권익지원센터<em>이재홍 센터장</em></li>
+          <li><b>6</b>열매 만남존 · 포토존<em>정지연</em></li>
+          <li><b>7</b>청년위원회<em>신단비</em></li>
+          <li class="rc"><b>8</b>접수대 2<em>정소희</em></li>
+          <li class="rc"><b>9</b>접수대 1<em>이진선</em></li>
+          <li><b>10</b>공정위원회 · 최전방<em>고석우</em></li>
+        </ul>
+        <p style="margin-top:10px;font-size:12.5px;color:var(--muted)">접수대는 테이블 4개(접수 3 + 총괄 1), 공항처럼 한 줄로 세운 뒤 1·2·3번으로 나눕니다. 공정위원회 부스는 관리사무소 인접 최전방이라 대기줄에 가리지 않게 배치합니다. 어린이 이벤트·아이스크림·완주 QR은 접수대가 아니라 부스구역 원형광장에서 진행합니다.</p>
+      </div>
+
+      <div class="card">
+        <h2>시장님 동선</h2>
+        <ol class="steps">
+          <li>안산공원관리사무소 앞 하차 (차량 2대)</li>
+          <li>도착 환영 · 의전 (정승아, 이지선, 회장단)</li>
+          <li>벚꽃마당까지 도보 약 200m</li>
+          <li>방명록 작성 (혼잡할 때만 안내)</li>
+          <li>체조 및 축사</li>
+          <li>경품 숫자 호명 후 퇴장</li>
+        </ol>
+      </div>
+
+      <div class="card">
+        <h2>차량·주차</h2>
+        <table class="kv">
+          <tr><td>대여 트럭</td><td>서대문구청 · 운전 고석우</td></tr>
+          <tr><td>협회 카니발</td><td>서대문구청 · 운전 정승아</td></tr>
+          <tr><td>스파크</td><td>구청 → 자연사박물관 → 폭포공원 · 운전 이지선</td></tr>
+          <tr><td>음향업체</td><td>자연사박물관 → 폭포공원 → 송죽원</td></tr>
+          <tr><td>출발</td><td>협회 06:10</td></tr>
+        </table>
+        <p style="margin-top:8px;font-size:12.5px;color:var(--muted)">구청은 주말 주민 이용으로 일찍 찰 수 있습니다. 시장님 차량 2대 배정 확인 후 협회 차량은 대안 부지로 바로 이동합니다.</p>
+      </div>
+
+      <div class="card">
+        <h2>식사</h2>
+        <table class="kv">
+          <tr><td>장소</td><td>연탄생고기집 홍은점</td></tr>
+          <tr><td>주소</td><td>서대문구 모래내로 343 1층</td></tr>
+          <tr><td>이동</td><td>13:00 출발 · 도보 13분(677m) · 고석우 인솔</td></tr>
+          <tr><td>식사</td><td>13:30~15:30</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- 연락망 -->
+    <section data-view="contact">
+      <div class="card">
+        <h2>구역별 연락 순위</h2>
+        <table class="contact">
+          <thead><tr><th>구역</th><th>1순위</th><th>2순위</th><th>3순위</th></tr></thead>
+          <tbody>
+            <tr><td>접수대</td><td class="r1">이진선</td><td class="r2">이정하</td><td class="r3">고석우</td></tr>
+            <tr><td>무대</td><td class="r1">이정하</td><td class="r2">고석우</td><td class="r3">양종철</td></tr>
+            <tr><td>등반로</td><td class="r1">고석우</td><td class="r2">양종철</td><td class="r3">–</td></tr>
+            <tr><td>음향</td><td class="r1">이재중</td><td class="r2">양종철</td><td class="r3">–</td></tr>
+            <tr><td>사진</td><td class="r1">스탭</td><td class="r2">고석우</td><td class="r3">–</td></tr>
+            <tr><td>연대회의</td><td class="r1">이진선</td><td class="r2">고석우</td><td class="r3">정승아</td></tr>
+            <tr><td>함께하는 단체</td><td class="r1">고석우</td><td class="r2">신단비</td><td class="r3">–</td></tr>
+          </tbody>
+        </table>
+        <p style="margin-top:10px;font-size:12.5px;color:var(--muted)">전화번호는 단체 카톡방 공지와 별도 문서로 확인합니다. 사진 스탭 소통은 고석우, 상비군 소통은 이해창.</p>
+      </div>
+      <div class="card">
+        <h2>판단 순서</h2>
+        <p>1차 고석우 과장 · 양종철 팀장 → 2차 정승아 부장. 접수대 현장 판단은 팀장이 바로 결정합니다.</p>
+        <p>위급 상황은 119 먼저, 그다음 카톡방 공유. 상비약은 접수대·무대·각 지점에 있습니다.</p>
+        <p>진행 상황(도착, 접수 마감, 출발 등)은 단체 카톡방에 올리고 읽으면 반응 이모지를 남깁니다.</p>
+      </div>
+      <div class="card">
+        <h2>기억할 숫자</h2>
+        <table class="kv">
+          <tr><td>참가</td><td>사전접수 1,470명 · 현장 포함 1,500명 예상</td></tr>
+          <tr><td>손수건</td><td>1,500개 (신판 800 + 구판 500 + 필환경 200) · 소진 시 안내</td></tr>
+          <tr><td>생수</td><td>1,800개 (청밀)</td></tr>
+          <tr><td>아이스크림</td><td>1,000개 (공제회) · 11:30 도착</td></tr>
+          <tr><td>문화상품권</td><td>100장 · 어린이(중고생 포함)</td></tr>
+          <tr><td>김밥</td><td>80줄 · 07:30~08:00 도착 · 1인 1줄</td></tr>
+          <tr><td>스탬프 용지</td><td>1,500장 · 도장 15개</td></tr>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<nav class="nav" role="tablist">
+  <button role="tab" data-v="time" aria-selected="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>타임라인</span></button>
+  <button role="tab" data-v="person" aria-selected="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-6 8-6s8 2 8 6"/></svg><span>내 업무</span></button>
+  <button role="tab" data-v="cue" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg><span>개회식</span></button>
+  <button role="tab" data-v="place" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M12 21s-6-5.3-6-11a6 6 0 0 1 12 0c0 5.7-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg><span>장소</span></button>
+  <button role="tab" data-v="contact" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg><span>연락</span></button>
+</nav>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ───────── 명단 ───────── */
+  var GROUPS = [
+    {name:"사무처", list:["이지선","정승아","고석우","이정하","양종철","이재중","이해창","채유리","신단비","이진선","정소희","최봄","최지혜","유예리","정지연","나한송","손채은","김도현"]},
+    {name:"권익위원회", list:["조은정","허곤","홍영호","구본영","안보현","태혜영","박소리","배영미","이세경","황재우"]},
+    {name:"스탭·연대회의", list:["이경원","김영민","김진래","김태웅","윤남","상비군","회장단","연대회의"]}
+  ];
+  var ALIAS = { "상비군":["김일훈","임효선","송경태","봉우석"] };
+
+  /* ───────── 개인별 시간대 매트릭스 (07~08 / 08~10 / 10~12 / 12~13 / 13~16) ───────── */
+  var SLOTS = [["07:00","08:00"],["08:00","10:00"],["10:00","12:00"],["12:00","13:00"],["13:00","16:00"]];
+  var MATRIX = {
+    "이지선":["무대 세팅","의전(입구) / 개회식 준비·진행","무대 대기","내빈 안내","스파크 운전 / 식사·물품 정리"],
+    "정승아":["인력배치·스탭관리","의전 / 내빈 전담 배정 확인","내빈 응대","내빈 안내","카니발 운전 / 식사·물품 정리"],
+    "고석우":["집결 총괄","개회식 지원 / 이슈파이팅 부스(공정위원회)","등반로 연락 총괄","정리·청소","트럭 운전 / 식사 인솔·물품 정리"],
+    "이정하":["무대 세팅","사전행사·개회식 / 경품 이벤트 지원","-","완주 확인·QR 등록","식사·물품 정리"],
+    "양종철":["음향업체 관리","음향라인 통로 확보 / 경품 실물 전시 / 현수막 거치 / 수령증 서명","-","QR 등록 안내 / 정리·청소","식사·물품 정리"],
+    "이재중":["업체 관리 지원","경품 실물 전시 / 현수막 거치 / 개회식 영상 촬영","-","등반코스 안내 표식 철거","식사·물품 정리"],
+    "이해창":["시작점 배너 설치","스탭관리 지원 / 선발대 출발 인솔","스탬프 3지점 / 갈림길 안내 총괄","철수 합류","식사·물품 정리"],
+    "채유리":["시작점 배너 설치","선발대","스탬프 3지점 운영","철수 합류","식사·물품 정리"],
+    "신단비":["청년위원회 부스 준비","함께하는 단체 관리 / 청년위원회 부스","청년위원회 부스 운영","등반코스 안내 표식 철거","식사·물품 정리"],
+    "이진선":["접수대 세팅 / 노트북·명단 조회","접수대 1 총괄·운영 / 경품 배부","-","완주 확인(스탬프 확인·용지 회수)","식사·물품 정리"],
+    "정소희":["접수대 세팅 / 노트북 세팅","접수대 2 총괄·운영 / 현장접수 처리 / 경품 배부","-","종료지점 샛길 안내","식사·물품 정리"],
+    "최봄":["접수대 세팅 / 번호 표지·줄 유도선","접수대 접수 / 어린이 이벤트","어린이 이벤트 · 아이스크림 도착 대기(11:30)","기념품·경품 배부 지원","식사·물품 정리"],
+    "최지혜":["접수대 세팅 / 번호 표지·줄 유도선","접수대 접수 / 어린이 이벤트 지원","-","아이스크림 배분","식사·물품 정리"],
+    "유예리":["접수대 세팅","선발대","스탬프 1지점 운영","철수 합류","식사·물품 정리"],
+    "정지연":["무대 세팅","행사 사진 촬영 총괄(열매존 인근)","-","종료지점 샛길 안내","식사·물품 정리"],
+    "나한송":["접수대 세팅","선발대","스탬프 2지점 운영","철수 합류","식사·물품 정리"],
+    "손채은":["접수대 세팅","선발대","스탬프 2지점 운영","철수 합류","식사·물품 정리"],
+    "김도현":["접수대 세팅","선발대","스탬프 1지점 운영","철수 합류","식사·물품 정리"],
+    "조은정":["-","개회식 사회 / 국민의례 진행 / 경품 이벤트","-","-","-"],
+    "허곤":["-","내빈 맞이","-","-","-"],
+    "홍영호":["-","선발대 기수(1지점까지 인솔)","-","-","-"],
+    "구본영":["-","접수대 협조","-","완주 확인·기념품 지원","-"],
+    "안보현":["-","접수대 협조","-","완주 확인·기념품 지원","-"],
+    "태혜영":["-","접수대 협조","-","완주 확인·기념품 지원","-"],
+    "박소리":["-","선발대","갈림길 안내","-","-"],
+    "배영미":["-","선발대","갈림길 안내","-","-"],
+    "이세경":["-","선발대","갈림길 안내","-","-"],
+    "황재우":["-","선발대","갈림길 안내","-","-"],
+    "이경원":["-","사전행사 진행 / 경품 이벤트 진행","-","-","-"],
+    "김영민":["-","개회식·스케치·전체 촬영(시장·주요내빈 스냅)","등반 스케치 촬영","정리 지원","-"],
+    "김진래":["-","개회식·전체·단체사진 촬영","등반 스케치 촬영","정리 지원","-"],
+    "김태웅":["-","회원·스케치 촬영","등반 스케치 촬영","-","-"],
+    "윤남":["-","수어 통역","-","-","-"],
+    "상비군":["현수막 거치","음향라인 통로 확보 지원","갈림길 안내","등반코스 안내 표식 철거 / 청소","-"],
+    "회장단":["-","회원 맞이 · 내빈 의전(관리사무소 앞 대기)","-","내빈 안내","-"],
+    "연대회의":["접수대 세팅","접수인원 관리 / 기념품·경품 배부","-","아이스크림 배부","-"]
+  };
+
+  /* ───────── 타임라인 ───────── */
+  var TL = [
+    {t:"07:00~08:00", s:"07:00", e:"08:00", label:"집결·세팅", items:[
+      {p:"벚꽃마당", task:"집결", lead:["고석우"], sub:["전체 직원"]},
+      {p:"접수대", task:"접수대 세팅 (테이블 4개)", lead:["이진선","정소희"], sub:["최봄","최지혜","유예리","나한송","손채은","김도현","연대회의"]},
+      {p:"접수대", task:"노트북 세팅 · 명단 조회 확인", lead:["이진선","정소희"], note:"조회 3대 + 예비"},
+      {p:"접수대", task:"번호 표지 부착, 줄 유도선 설치", lead:["최봄","최지혜"], note:"접수대 1·2·3 구분, 한 줄 대기 후 분산"},
+      {p:"무대", task:"무대 세팅", lead:["이지선"], sub:["고석우","이정하","정지연"], note:"태극기·단상 2개·명패"},
+      {p:"무대", task:"음향업체 관리", lead:["양종철"], sub:["이재중"], note:"마이크 실사용 2대"},
+      {p:"무대", task:"경품 실물 전시 세팅", lead:["양종철","이재중"], note:"철제테이블, 포장 없이 실물"},
+      {p:"무대", task:"현수막 거치", lead:["양종철"], sub:["이재중","상비군"]},
+      {p:"등반로", task:"시작점 배너 설치 (3곳)", lead:["이해창"], sub:["채유리"], note:"물통 배너"},
+      {p:"부스", task:"청년위원회 부스 준비", lead:["신단비"]},
+      {p:"전체", task:"인력배치 · 스탭관리 · 비상연락망 배부", lead:["정승아"], sub:["이해창"]},
+      {p:"전체", task:"김밥 도착 (80줄) · 1인 1줄 배분", lead:["고석우"], note:"07:30~08:00 도착"}
+    ]},
+    {t:"08:00~08:30", s:"08:00", e:"08:30", label:"의전·선발대", items:[
+      {p:"입구", task:"의전 및 의전관리", lead:["정승아","이지선"], sub:["회장단"], note:"부회장별 전담 배정, 관리사무소 앞 대기"},
+      {p:"입구", task:"선발대 출발", lead:["이해창"], sub:["채유리","유예리","나한송","손채은","김도현","박소리","배영미","이세경","황재우"], note:"기수 홍영호 · 1지점까지 인솔"},
+      {p:"무대 주변", task:"음향라인 통로 확보 (~10:00)", lead:["양종철"], sub:["상비군"], note:"입구 통로 지속 확보"}
+    ]},
+    {t:"08:30~09:00", s:"08:30", e:"09:00", label:"접수 시작", items:[
+      {p:"접수대", task:"접수대 운영 (3조 · ~10:00)", lead:["이진선","정소희"], sub:["최봄","최지혜","구본영","안보현","태혜영","연대회의"], note:"① 줄서기 안내 ② 명단 확인·기념품 배부 · 조별 연대회의 3명 + 담당 1명"},
+      {p:"접수대", task:"현장접수 처리 (QR 자가입력)", lead:["정소희"], sub:["연대회의"], note:"확인 후 기념품 배부"},
+      {p:"무대", task:"개회식 준비", lead:["이지선"], sub:["고석우","이정하"], note:"사회 조은정 부위원장"},
+      {p:"무대", task:"사전행사", lead:["이경원"], sub:["양종철","이정하"], note:"경품 투썸 5,000원권 20개"},
+      {p:"부스", task:"이슈파이팅 부스 (공정위원회)", lead:["고석우"], note:"SNS 이벤트·서명"},
+      {p:"부스", task:"함께하는 단체 관리 · 청년위원회 부스", lead:["신단비"]}
+    ]},
+    {t:"09:00~09:30", s:"09:00", e:"09:30", label:"개회식", items:[
+      {p:"무대", task:"국민의례", lead:["조은정"], sub:["고석우","이정하"], note:"국기에 대한 경례만, 애국가 생략"},
+      {p:"무대", task:"개회식 (개회사·축사·연대사·회원축사)", lead:["이지선"], sub:["고석우","이정하","이재중"], note:"영상 이재중 · 내빈소개 서대문구청장→국회의원→서울시의회"},
+      {p:"무대", task:"수어 통역", lead:["윤남"]},
+      {p:"전체", task:"사진촬영 (개회식·스케치·전체)", lead:["고석우"], sub:["김영민","김진래","김태웅"], note:"김영민 시장·내빈 스냅 / 김진래 전체·단체 / 김태웅 회원·스케치"},
+      {p:"열매존", task:"사진촬영 (열매존 인근)", lead:["정지연"]}
+    ]},
+    {t:"09:30~10:00", s:"09:30", e:"10:00", label:"경품·출발", items:[
+      {p:"무대", task:"경품 이벤트 (09:30~09:35)", lead:["이경원","조은정"], sub:["양종철","이정하"], note:"1~3등 사전접수 회원 추첨 · 4등 시장님 호명 숫자로 전화번호 끝자리 · 수령증 서명 양종철(1~3등만)"},
+      {p:"무대→등반로", task:"기념촬영 및 등반 안내 (09:35~)", lead:["이지선"], note:"단체사진 후 등반 시작 09:40~09:45"},
+      {p:"부스구역", task:"어린이 이벤트 · 문화상품권 배부 (~10:30)", lead:["최봄"], sub:["최지혜"], note:"개회식 종료 후 · 화살표 머리띠 착용 · 도장 날인"}
+    ]},
+    {t:"10:00~12:00", s:"10:00", e:"12:00", label:"등반", items:[
+      {p:"1지점 숲속무대", task:"스탬프 1지점 운영", lead:["유예리","김도현"], note:"도장 5개 · 몰림 예상"},
+      {p:"2지점 전망대", task:"스탬프 2지점 운영", lead:["나한송","손채은"], note:"도장 3~5개 · 팀 하산 안내 병행"},
+      {p:"3지점 너와집쉼터", task:"스탬프 3지점 운영", lead:["이해창","채유리"], note:"도장 3~5개"},
+      {p:"등반로 전 구간", task:"갈림길 안내", lead:["이해창"], sub:["박소리","배영미","이세경","황재우","상비군"], note:"초록 손수건·깃발 · 초입 집중 배치"},
+      {p:"등반로", task:"등반 스케치 촬영", lead:["김영민","김진래","김태웅"]},
+      {p:"부스구역", task:"청년위원회 부스 운영", lead:["신단비"]},
+      {p:"무대", task:"무대 대기 · 내빈 응대", lead:["이지선","정승아"]},
+      {p:"부스구역", task:"아이스크림 현장 도착 (11:30)", lead:["최봄"], note:"공제회 후원 1,000개 · 아이스박스"}
+    ]},
+    {t:"12:00~13:00", s:"12:00", e:"13:00", label:"완주·정리", items:[
+      {p:"부스구역", task:"완주 확인 (스탬프 3개 확인 후 용지 회수)", lead:["이진선"], sub:["이정하","구본영","안보현","태혜영"], note:"확인 후 옆 QR 등록으로 연결"},
+      {p:"부스구역", task:"QR 등록 안내 (확인자만 개인정보 입력)", lead:["이정하"], sub:["양종철"], note:"QR 출력물 다수 게시"},
+      {p:"부스구역", task:"아이스크림 배분 (12:00~12:30)", lead:["최지혜"], sub:["최봄","연대회의"]},
+      {p:"종료지점", task:"갈림길·샛길 안내", lead:["정소희","정지연"], note:"배너 챙기기"},
+      {p:"등반로", task:"안내 표식 철거 · 쓰레기 수거", lead:["이재중","신단비"], sub:["상비군"], note:"1→2→3지점 순으로 올라가며 철거, 위팀과 합류 후 도보 하산"},
+      {p:"무대·접수대", task:"정리 및 청소", lead:["고석우","양종철"], sub:["정승아","상비군","김영민","김진래"], note:"재활용은 화장실 앞 배출, 일반쓰레기는 협회 수거"},
+      {p:"무대 앞", task:"내빈 안내", lead:["이지선","정승아"], sub:["회장단"]},
+      {p:"벚꽃마당", task:"참가자 해산 (12:00~12:30)", lead:["전체"]}
+    ]},
+    {t:"13:00~16:00", s:"13:00", e:"16:00", label:"식사·복귀", items:[
+      {p:"이동", task:"식사 장소 이동 (13:00)", lead:["고석우"], sub:["전체 직원"], note:"도보 13분 · 677m"},
+      {p:"연탄생고기집 홍은점", task:"진행요원 식사 (13:30~15:30)", lead:["고석우"], sub:["전체 직원"]},
+      {p:"협회", task:"복귀 · 물품 정리 (15:30~16:00)", lead:["고석우"], sub:["전체 직원"], note:"트럭 하차 완료(일요일 반납) · 스파크 이지선 / 카니발 정승아 / 트럭 고석우"}
+    ]}
+  ];
+
+  var CUE = [
+    ["09:00","개회 및 내빈소개","조은정 권익위원회 부위원장"],
+    ["09:08","개회사","곽경인 서울시사회복지사협회장"],
+    ["09:13","축사","오세훈 서울특별시장 외 주요 내빈"],
+    ["09:23","연대사 및 환영사","김경우 서울시의회 보건복지위원장 · 박운기 서대문구청장 · 김연은 연대회의 상임대표"],
+    ["09:28","회원 축사","청년사회복지사 (청년위원회)"],
+    ["09:30","경품 이벤트","조은정 부위원장 · 이경원 대표 진행 · 시장님 숫자 호명"],
+    ["09:35","기념촬영 및 등반 안내","단체사진 촬영"],
+    ["09:40","등반 시작","선발대 기수 홍영호 → 안산 등반"]
+  ];
+
+  /* ───────── 유틸 ───────── */
+  var $ = function(id){ return document.getElementById(id); };
+  var state = { me:"", view:"time", onlyMine:false, person:"", pickerOpen:false };
+  var EVENT = new Date(2026, 8, 12);
+
+  function esc(s){ return String(s == null ? "" : s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+  function mins(hm){ var a = hm.split(":"); return (+a[0]) * 60 + (+a[1]); }
+  function isMe(name){
+    if(!state.me) return false;
+    if(name === state.me) return true;
+    if(ALIAS[name] && ALIAS[name].indexOf(state.me) > -1) return true;
+    if(name === "전체" || name === "전체 직원") return GROUPS[0].list.indexOf(state.me) > -1;
+    return false;
+  }
+  function involves(item){
+    return (item.lead || []).some(isMe) || (item.sub || []).some(isMe);
+  }
+  function nameHtml(n, bold){
+    var cls = isMe(n) ? "me" : "";
+    return bold ? "<b class='" + cls + "'>" + esc(n) + "</b>" : "<span class='" + cls + "'>" + esc(n) + "</span>";
+  }
+
+  /* 지금 시각 → 현재 블록 (행사 당일에만) */
+  function nowInfo(){
+    var d = new Date();
+    var sameDay = d.getFullYear() === 2026 && d.getMonth() === 8 && d.getDate() === 12;
+    if(!sameDay) return null;
+    var m = d.getHours() * 60 + d.getMinutes();
+    var cur = null, next = null;
+    TL.forEach(function(b){
+      if(m >= mins(b.s) && m < mins(b.e)) cur = b;
+      else if(!next && m < mins(b.s)) next = b;
+    });
+    return { m:m, cur:cur, next:next };
+  }
+
+  /* 해시 */
+  function readHash(){
+    var h = location.hash.replace(/^#/, "");
+    h.split("&").forEach(function(kv){
+      var p = kv.split("="), k = p[0], v = decodeURIComponent(p.slice(1).join("=") || "");
+      if(k === "me") state.me = v;
+      if(k === "v" && document.querySelector('section[data-view="' + v + '"]')) state.view = v;
+    });
+    if(state.me && !state.person) state.person = state.me;
+  }
+  function writeHash(){
+    var p = [];
+    if(state.me) p.push("me=" + encodeURIComponent(state.me));
+    if(state.view !== "time") p.push("v=" + state.view);
+    var h = p.length ? "#" + p.join("&") : location.pathname + location.search;
+    if(h !== location.hash) history.replaceState(null, "", h);
+  }
+
+  /* ───────── 렌더 ───────── */
+  function renderHeader(){
+    var today = new Date(); today.setHours(0,0,0,0);
+    var diff = Math.round((EVENT - today) / 86400000);
+    var dd = $("dday");
+    var lab = diff > 0 ? "D-" + diff : (diff === 0 ? "오늘" : "종료");
+    dd.innerHTML = '<span class="pill">' + lab + "</span>";
+
+    var ni = nowInfo(), strip = $("nowStrip");
+    if(ni && ni.cur){
+      strip.className = "now-strip show";
+      var mine = state.me ? ni.cur.items.filter(involves).length : 0;
+      strip.innerHTML = "지금 <b>" + esc(ni.cur.t) + "</b> " + esc(ni.cur.label) +
+        (state.me ? " · 내 업무 " + mine + "건" : "");
+    }else if(ni && ni.next){
+      strip.className = "now-strip show";
+      strip.innerHTML = "다음 <b>" + esc(ni.next.s) + "</b> " + esc(ni.next.label) + " 시작";
+    }else{
+      strip.className = "now-strip";
+    }
+  }
+
+  function renderMeSelect(){
+    var sel = $("me");
+    var html = '<option value="">선택하면 내 업무가 표시됩니다</option>';
+    GROUPS.forEach(function(g){
+      html += '<optgroup label="' + esc(g.name) + '">' + g.list.map(function(n){
+        var label = ALIAS[n] ? n + " (" + ALIAS[n].join("·") + ")" : n;
+        return '<option value="' + esc(n) + '">' + esc(label) + "</option>";
+      }).join("") + "</optgroup>";
+      if(g.name === "스탭·연대회의"){
+        html += '<optgroup label="상비군 개별">' + ALIAS["상비군"].map(function(n){
+          return '<option value="' + esc(n) + '">' + esc(n) + "</option>";
+        }).join("") + "</optgroup>";
+      }
+    });
+    sel.innerHTML = html;
+    sel.value = state.me;
+  }
+
+  function renderTimeline(){
+    var ni = nowInfo();
+    var host = $("timeline");
+    $("onlyMine").disabled = !state.me;
+    if(!state.me){ state.onlyMine = false; $("onlyMine").checked = false; }
+
+    host.innerHTML = TL.map(function(b){
+      var items = b.items.filter(function(it){ return !state.onlyMine || involves(it); });
+      if(!items.length) return "";
+      var isNow = ni && ni.cur === b;
+      return '<div class="tblock' + (isNow ? " now" : "") + '">' +
+        '<div class="tt"><div class="h">' + esc(b.s) + "</div><small>~" + esc(b.e) + "</small><small>" + esc(b.label) + "</small>" +
+          (isNow ? '<span class="nowtag">지금</span>' : "") + "</div>" +
+        '<ul class="items">' + items.map(function(it){
+          var mine = involves(it);
+          return "<li" + (mine ? ' class="mine"' : "") + ">" +
+            '<span class="place">' + esc(it.p) + "</span>" +
+            '<div class="task">' + esc(it.task) + "</div>" +
+            '<div class="who">' + (it.lead || []).map(function(n){ return nameHtml(n, true); }).join(", ") +
+              (it.sub && it.sub.length ? " · " + it.sub.map(function(n){ return nameHtml(n, false); }).join(", ") : "") + "</div>" +
+            (it.note ? '<div class="note">' + esc(it.note) + "</div>" : "") +
+          "</li>";
+        }).join("") + "</ul></div>";
+    }).join("") || '<div class="card"><p>선택한 이름에 배정된 업무가 없습니다.</p></div>';
+  }
+
+  function renderPeople(){
+    var host = $("people");
+    var html = "";
+    if(state.person && !state.pickerOpen){
+      html = '<div class="pickbar"><span class="pickname" data-initial="' + esc(state.person.charAt(0)) + '">' + esc(state.person) + "</span>" +
+             '<button class="pchip" id="openPicker">다른 사람 보기</button></div>';
+    }else{
+      GROUPS.forEach(function(g){
+        html += '<div class="pgroup">' + esc(g.name) + '</div><div class="people">' +
+          g.list.map(function(n){
+            return '<button class="pchip" data-p="' + esc(n) + '" aria-pressed="' + (state.person === n ? "true" : "false") + '">' + esc(n) + "</button>";
+          }).join("") + "</div>";
+      });
+    }
+    host.innerHTML = html;
+
+    var body = $("personBody");
+    var p = state.person;
+    if(!p){
+      body.innerHTML = '<div class="card"><h2>이름을 고르세요</h2><p>시간대별 담당 업무와 상세 타임라인이 표시됩니다. 상단에서 내 이름을 선택해 두면 여기와 타임라인 모두 자동으로 강조됩니다.</p></div>';
+      return;
+    }
+    var m = MATRIX[p] || ["-","-","-","-","-"];
+    var ni = nowInfo();
+    var out = '<div class="sec" style="margin-top:18px">시간대별 업무' + (ALIAS[p] ? " · " + esc(ALIAS[p].join(", ")) : "") + "<span></span><em>5구간</em></div>";
+    out += '<div class="matrix">' + SLOTS.map(function(s, i){
+      var isNow = ni && ni.m >= mins(s[0]) && ni.m < mins(s[1]);
+      var v = m[i] || "-";
+      var parts = v === "-" ? [] : v.split(" / ");
+      return '<div class="slot' + (isNow ? " now" : "") + '"><div class="st">' + s[0] + "<small>~" + s[1] + "</small></div>" +
+        '<div class="sv' + (parts.length ? "" : " none") + '">' + (parts.length ? parts.map(function(x){ return "<i>" + esc(x) + "</i>"; }).join("") : "배정 없음 · 대기·지원") + "</div></div>";
+    }).join("") + "</div>";
+
+    /* 상세 타임라인: 이 사람이 들어간 항목 */
+    var saved = state.me; state.me = p;
+    var rows = [];
+    TL.forEach(function(b){ b.items.forEach(function(it){ if(involves(it)) rows.push({b:b, it:it}); }); });
+    state.me = saved;
+    if(rows.length){
+      out += '<div class="sec">상세 업무<span></span><em>' + rows.length + "건</em></div>" +
+        '<ul class="items">' + rows.map(function(r){
+          var lead = (r.it.lead || []).indexOf(p) > -1 || (r.it.lead || []).some(function(n){ return ALIAS[n] && ALIAS[n].indexOf(p) > -1; });
+          return "<li>" +
+            '<span class="place">' + esc(r.b.t) + " · " + esc(r.it.p) + "</span>" +
+            '<div class="task">' + esc(r.it.task) + (lead ? "" : ' <span style="font-size:12px;font-weight:600;color:var(--muted)">지원</span>') + "</div>" +
+            '<div class="who">' + (r.it.lead || []).map(function(n){ return "<b>" + esc(n) + "</b>"; }).join(", ") +
+              (r.it.sub && r.it.sub.length ? " · " + r.it.sub.map(esc).join(", ") : "") + "</div>" +
+            (r.it.note ? '<div class="note">' + esc(r.it.note) + "</div>" : "") +
+          "</li>";
+        }).join("") + "</ul>";
+    }
+    body.innerHTML = out;
+  }
+
+  function renderCue(){
+    $("cue").innerHTML = CUE.map(function(c){
+      return "<li><div class='ct'>" + esc(c[0]) + "</div><div><div class='cn'>" + esc(c[1]) + "</div><div class='cw'>" + esc(c[2]) + "</div></div></li>";
+    }).join("");
+  }
+
+  function setView(v){
+    state.view = v;
+    document.querySelectorAll("section[data-view]").forEach(function(s){ s.classList.toggle("on", s.dataset.view === v); });
+    document.querySelectorAll(".nav button").forEach(function(b){ b.setAttribute("aria-selected", b.dataset.v === v ? "true" : "false"); });
+    writeHash();
+    window.scrollTo({top:0});
+  }
+
+  function renderAll(){
+    renderHeader();
+    renderTimeline();
+    renderPeople();
+  }
+
+  /* ───────── 이벤트 ───────── */
+  $("me").addEventListener("change", function(e){
+    state.me = e.target.value;
+    if(state.me) state.person = state.me;
+    writeHash();
+    renderAll();
+  });
+  $("onlyMine").addEventListener("change", function(e){ state.onlyMine = e.target.checked; renderTimeline(); });
+  $("people").addEventListener("click", function(e){
+    var b = e.target.closest(".pchip");
+    if(!b) return;
+    if(b.id === "openPicker"){ state.pickerOpen = true; renderPeople(); return; }
+    state.person = b.dataset.p;
+    state.pickerOpen = false;
+    renderPeople();
+  });
+  document.querySelectorAll(".nav button").forEach(function(b){
+    b.addEventListener("click", function(){ setView(b.dataset.v); });
+  });
+
+  /* ───────── 시작 ───────── */
+  readHash();
+  renderMeSelect();
+  renderCue();
+  renderAll();
+  setView(state.view);
+  setInterval(renderHeader, 60000);
+})();
+</script>
+</body>
+</html>
