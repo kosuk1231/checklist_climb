@@ -16,11 +16,6 @@ section[data-view].on{display:block}
 html{scroll-padding-top:150px}
 .dday{display:inline-flex;flex-direction:column;align-items:flex-end;gap:3px}
 .dday small{font-size:11.5px;color:var(--faint);font-weight:500}
-.hdr-right{display:flex;flex-direction:column;align-items:flex-end;gap:7px}
-.backlink{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;color:var(--accent);text-decoration:none;background:var(--card);border:1px solid var(--accent-line);border-radius:999px;padding:5px 11px;white-space:nowrap;box-shadow:var(--shadow)}
-.backlink:hover{background:var(--accent-soft)}
-.backlink svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.backlink:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .nav{grid-template-columns:repeat(5,1fr)}
 
 
@@ -139,13 +134,7 @@ section[data-view].on{display:block}
   <header class="hdr">
     <div class="brand">
       <h1>9/12(토) 당일 안내<span>2026 서울사회복지사 등반대회</span></h1>
-      <div class="hdr-right">
-        <div class="dday" id="dday"></div>
-        <a class="backlink" href="./">
-          <svg viewBox="0 0 24 24"><path d="M9 11l3 3 7-7"/><path d="M20 12v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h9"/></svg>
-          체크리스트
-        </a>
-      </div>
+      <div class="dday" id="dday"></div>
     </div>
     <div class="mebar">
       <label for="me">내 이름</label>

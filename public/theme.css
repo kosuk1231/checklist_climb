@@ -8,14 +8,14 @@
   --bg:#f3f6f4;
   --card:#ffffff;
   --card-2:#f6f9f7;
-  --line:#dfe6e1;
-  --line-2:#c5d1c9;
+  --line:#dfe6e1;   /* 구획 구분선 — 장식용, 대비 기준 없음 */
+  --line-2:#7f9488; /* 입력·버튼 테두리 — WCAG 1.4.11 비텍스트 3:1 충족 */
 
   /* 글자 — 숲 잉크 계열, 대비 충분히 */
   --ink:#12231a;
   --text:#2f4238;
   --muted:#5a6d61;
-  --faint:#889a8e;
+  --faint:#74867a;
 
   /* 강조 — 등반대회 그린 */
   --accent:#1e7a4b;
@@ -34,8 +34,8 @@
 
   /* 체크리스트 3단계 */
   --s0:#2563eb;  --s0-soft:#eef4ff;
-  --s1:#d97706;  --s1-soft:#fff8ea;
-  --s2:#dc2626;  --s2-soft:#fef2f2;
+  --s1:#a75607;  --s1-soft:#fff8ea;
+  --s2:#bf1b1b;  --s2-soft:#fef2f2;
 
   --shadow:0 1px 2px rgba(18,35,26,.05);
   --r:12px; --r-sm:8px;
