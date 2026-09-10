@@ -16,6 +16,38 @@ section[data-view].on{display:block}
 html{scroll-padding-top:150px}
 .dday{display:inline-flex;flex-direction:column;align-items:flex-end;gap:3px}
 .dday small{font-size:11.5px;color:var(--faint);font-weight:500}
+.hdr-right{display:flex;flex-direction:column;align-items:flex-end;gap:7px}
+.hdr-links{display:flex;gap:6px}
+.backlink{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;color:var(--accent);text-decoration:none;background:var(--card);border:1px solid var(--accent-line);border-radius:999px;padding:5px 11px;white-space:nowrap;box-shadow:var(--shadow)}
+.backlink:hover{background:var(--accent-soft)}
+.backlink svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.backlink:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.backlink.edit{font-family:inherit;cursor:pointer}
+body.editing .backlink.edit{background:var(--accent);border-color:var(--accent);color:#fff}
+.editbar{margin-top:10px;background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:var(--r-sm);padding:8px 11px;font-size:13px;font-weight:600;color:var(--accent-ink);display:none;align-items:center;gap:8px;flex-wrap:wrap}
+body.editing .editbar{display:flex}
+.editbar b{font-weight:700}
+.ebtns{display:none;gap:5px;margin-top:9px;flex-wrap:wrap}
+body.editing .ebtns{display:flex}
+.ebtn{appearance:none;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:600;color:var(--text);background:var(--card);border:1px solid var(--line-2);border-radius:6px;padding:4px 10px;min-height:32px}
+.ebtn:hover{background:var(--card-2)}
+.ebtn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.ebtn.del{border-color:#fecaca;color:var(--danger)}
+.ebtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.efld{width:100%;font-family:inherit;font-size:14px;color:var(--ink);background:var(--card);border:1px solid var(--line-2);border-radius:6px;padding:7px 9px;min-height:38px;margin-top:5px}
+.efld:focus-visible{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
+.elab{display:block;font-size:11.5px;font-weight:600;color:var(--muted);margin-top:9px}
+.eform{padding:2px 0 4px}
+.addwrap{display:none;margin-top:8px}
+body.editing .addwrap{display:block}
+body.editing .slot .sv{cursor:pointer}
+body.editing .slot .sv::after{content:"수정";font-size:11px;font-weight:600;color:var(--accent);margin-left:8px}
+body.editing .cue li{cursor:pointer}
+body.editing .tt .h{cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}
+.toast{position:fixed;left:50%;bottom:calc(var(--nav) + 16px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(8px);background:var(--ink);color:#fff;padding:11px 16px;border-radius:10px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;z-index:50;max-width:88vw;text-align:center;box-shadow:0 6px 20px rgba(18,35,26,.2)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.bad{background:var(--danger)}
+.toast.good{background:var(--accent)}
 .nav{grid-template-columns:repeat(5,1fr)}
 
 
@@ -134,13 +166,26 @@ section[data-view].on{display:block}
   <header class="hdr">
     <div class="brand">
       <h1>9/12(토) 당일 안내<span>2026 서울사회복지사 등반대회</span></h1>
-      <div class="dday" id="dday"></div>
+      <div class="hdr-right">
+        <div class="dday" id="dday"></div>
+        <div class="hdr-links">
+          <a class="backlink" href="./">
+            <svg viewBox="0 0 24 24"><path d="M9 11l3 3 7-7"/><path d="M20 12v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h9"/></svg>
+            체크리스트
+          </a>
+          <button class="backlink edit" id="editToggle" type="button" aria-pressed="false">
+            <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+            <span id="editLabel">편집</span>
+          </button>
+        </div>
+      </div>
     </div>
     <div class="mebar">
       <label for="me">내 이름</label>
       <select id="me" class="field"><option value="">선택하면 내 업무가 표시됩니다</option></select>
     </div>
     <div class="now-strip" id="nowStrip"></div>
+    <div class="editbar" id="editBar"><b>편집 모드</b><span>고친 내용은 바로 시트에 저장됩니다</span></div>
   </header>
 
   <main>
@@ -307,7 +352,9 @@ section[data-view].on{display:block}
   <button role="tab" data-v="place" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M12 21s-6-5.3-6-11a6 6 0 0 1 12 0c0 5.7-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg><span>장소</span></button>
   <button role="tab" data-v="contact" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg><span>연락</span></button>
 </nav>
+<div class="toast" id="toast" role="status"></div>
 
+<script src="config.js"></script>
 <script>
 (function(){
   "use strict";
@@ -440,9 +487,21 @@ section[data-view].on{display:block}
     ["09:40","등반 시작","선발대 기수 홍영호 → 안산 등반"]
   ];
 
+  /* 파일에 박힌 기본 데이터에도 시트와 같은 규칙으로 id를 매긴다.
+     (Guide.gs 의 guideSeed 가 만드는 id 와 동일해야 편집이 맞물린다) */
+  function stampIds(){
+    TL.forEach(function(b, bi){
+      if(!b.id) b.id = "B" + String(bi + 1).padStart(2, "0");
+      b.items.forEach(function(it, i){
+        if(!it.id) it.id = b.id + "-" + String(i + 1).padStart(2, "0");
+      });
+    });
+  }
+
   /* ───────── 유틸 ───────── */
   var $ = function(id){ return document.getElementById(id); };
-  var state = { me:"", view:"time", onlyMine:false, person:"", pickerOpen:false };
+  var state = { me:"", view:"time", onlyMine:false, person:"", pickerOpen:false,
+                editing:false, key:"", edit:null, addTo:null, source:"local" };
   var EVENT = new Date(2026, 8, 12);
 
   function esc(s){ return String(s == null ? "" : s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
@@ -460,6 +519,72 @@ section[data-view].on{display:block}
   function nameHtml(n, bold){
     var cls = isMe(n) ? "me" : "";
     return bold ? "<b class='" + cls + "'>" + esc(n) + "</b>" : "<span class='" + cls + "'>" + esc(n) + "</span>";
+  }
+
+  /* ───────── API (JSONP) ───────── */
+  var API = (window.CHECKLIST_API || "").trim();
+  var seq = 0;
+  function call(params){
+    if(!API) return Promise.reject(new Error("config.js에 웹앱 URL이 없습니다"));
+    return new Promise(function(res, rej){
+      var name = "__gd" + (++seq) + "_" + Date.now();
+      var el = document.createElement("script");
+      var timer = setTimeout(function(){ done(); rej(new Error("응답 시간 초과")); }, 20000);
+      function done(){ clearTimeout(timer); delete window[name]; if(el.parentNode) el.parentNode.removeChild(el); }
+      window[name] = function(r){
+        done();
+        if(!r || !r.ok) rej(new Error((r && r.error) || "알 수 없는 오류"));
+        else res(r.data);
+      };
+      var qs = Object.keys(params).map(function(k){
+        return encodeURIComponent(k) + "=" + encodeURIComponent(params[k]);
+      }).join("&");
+      el.src = API + (API.indexOf("?") > -1 ? "&" : "?") + qs + "&callback=" + name;
+      el.onerror = function(){ done(); rej(new Error("네트워크 오류")); };
+      document.head.appendChild(el);
+    });
+  }
+  function admin(params){ params.key = state.key; return call(params); }
+
+  function toast(m, kind){
+    var t = $("toast");
+    t.textContent = m;
+    t.className = "toast show" + (kind ? " " + kind : "");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function(){ t.className = "toast"; }, 2600);
+  }
+
+  /* 시트에서 최신 안내 내용 가져오기. 실패하면 파일에 박힌 기본값 유지 */
+  function loadRemote(){
+    if(!API) return Promise.resolve();
+    return call({action:"guide"}).then(function(d){
+      if(!d || d.empty || !d.tl || !d.tl.length) return;
+      TL = d.tl;
+      if(d.slots && d.slots.length) SLOTS = d.slots;
+      if(d.matrix && Object.keys(d.matrix).length) MATRIX = d.matrix;
+      if(d.cue && d.cue.length) CUE = d.cue;
+      state.source = "sheet";
+      rebuildRoster();
+    }).catch(function(){ /* 오프라인이면 기본값 그대로 */ });
+  }
+
+  /* 시트 내용에 맞춰 이름 목록 갱신 */
+  function rebuildRoster(){
+    var known = {};
+    GROUPS.forEach(function(g){ g.list.forEach(function(n){ known[n] = 1; }); });
+    var extra = [];
+    Object.keys(MATRIX).forEach(function(n){ if(!known[n]){ known[n] = 1; extra.push(n); } });
+    TL.forEach(function(b){ b.items.forEach(function(it){
+      (it.lead || []).concat(it.sub || []).forEach(function(n){
+        if(!known[n] && n !== "전체" && n !== "전체 직원"){ known[n] = 1; extra.push(n); }
+      });
+    }); });
+    var last = GROUPS[GROUPS.length - 1];
+    if(extra.length && last.name !== "추가 인원"){
+      GROUPS.push({ name:"추가 인원", list:extra });
+    }else if(extra.length){
+      last.list = extra;
+    }
   }
 
   /* 지금 시각 → 현재 블록 (행사 당일에만) */
@@ -542,12 +667,23 @@ section[data-view].on{display:block}
 
     host.innerHTML = TL.map(function(b){
       var items = b.items.filter(function(it){ return !state.onlyMine || involves(it); });
-      if(!items.length) return "";
+      if(!items.length && !state.editing) return "";
       var isNow = ni && ni.cur === b;
+      var head = state.editing && state.edit === "block:" + b.id
+        ? '<div class="eform">' +
+            '<label class="elab">시작</label><input class="efld" id="eb_s" value="' + esc(b.s) + '" />' +
+            '<label class="elab">종료</label><input class="efld" id="eb_e" value="' + esc(b.e) + '" />' +
+            '<label class="elab">구간 이름</label><input class="efld" id="eb_l" value="' + esc(b.label) + '" />' +
+            '<div class="ebtns"><button class="ebtn pri" data-a="bsave" data-id="' + esc(b.id) + '">저장</button>' +
+            '<button class="ebtn" data-a="cancel">취소</button></div>' +
+          "</div>"
+        : '<div class="h" data-a="bedit" data-id="' + esc(b.id || "") + '">' + esc(b.s) + "</div><small>~" + esc(b.e) + "</small><small>" + esc(b.label) + "</small>" +
+          (isNow ? '<span class="nowtag">지금</span>' : "");
+
       return '<div class="tblock' + (isNow ? " now" : "") + '">' +
-        '<div class="tt"><div class="h">' + esc(b.s) + "</div><small>~" + esc(b.e) + "</small><small>" + esc(b.label) + "</small>" +
-          (isNow ? '<span class="nowtag">지금</span>' : "") + "</div>" +
-        '<ul class="items">' + items.map(function(it){
+        '<div class="tt">' + head + "</div>" +
+        '<ul class="items">' + (items.map(function(it){
+          if(state.editing && state.edit === "task:" + it.id) return editTaskRow(it);
           var mine = involves(it);
           return "<li" + (mine ? ' class="mine"' : "") + ">" +
             '<span class="place">' + esc(it.p) + "</span>" +
@@ -555,9 +691,43 @@ section[data-view].on{display:block}
             '<div class="who">' + (it.lead || []).map(function(n){ return nameHtml(n, true); }).join(", ") +
               (it.sub && it.sub.length ? " · " + it.sub.map(function(n){ return nameHtml(n, false); }).join(", ") : "") + "</div>" +
             (it.note ? '<div class="note">' + esc(it.note) + "</div>" : "") +
+            (it.id ? '<div class="ebtns">' +
+              '<button class="ebtn" data-a="tedit" data-id="' + esc(it.id) + '">수정</button>' +
+              '<button class="ebtn" data-a="tup" data-id="' + esc(it.id) + '">↑</button>' +
+              '<button class="ebtn" data-a="tdown" data-id="' + esc(it.id) + '">↓</button>' +
+            "</div>" : "") +
           "</li>";
-        }).join("") + "</ul></div>";
+        }).join("") || '<li><div class="who">이 시간대에 표시할 업무가 없습니다</div></li>') + "</ul>" +
+        (b.id ? '<div class="addwrap">' + (state.addTo === b.id ? addTaskForm(b) :
+          '<button class="ebtn" data-a="addopen" data-id="' + esc(b.id) + '">+ 이 시간대에 업무 추가</button>') + "</div>" : "") +
+      "</div>";
     }).join("") || '<div class="card"><p>선택한 이름에 배정된 업무가 없습니다.</p></div>';
+  }
+
+  function editTaskRow(it){
+    return '<li><div class="eform">' +
+      '<label class="elab">장소</label><input class="efld" id="et_p" value="' + esc(it.p) + '" />' +
+      '<label class="elab">업무</label><input class="efld" id="et_task" value="' + esc(it.task) + '" />' +
+      '<label class="elab">총괄 (여러 명은 콤마)</label><input class="efld" id="et_lead" value="' + esc((it.lead || []).join(", ")) + '" />' +
+      '<label class="elab">지원</label><input class="efld" id="et_sub" value="' + esc((it.sub || []).join(", ")) + '" />' +
+      '<label class="elab">유의사항</label><input class="efld" id="et_note" value="' + esc(it.note || "") + '" />' +
+      '<div class="ebtns">' +
+        '<button class="ebtn pri" data-a="tsave" data-id="' + esc(it.id) + '">저장</button>' +
+        '<button class="ebtn" data-a="cancel">취소</button>' +
+        '<button class="ebtn del" data-a="tdel" data-id="' + esc(it.id) + '" style="margin-left:auto">삭제</button>' +
+      "</div></div></li>";
+  }
+
+  function addTaskForm(b){
+    return '<div class="card" style="margin-top:0"><div class="eform">' +
+      '<label class="elab">' + esc(b.s) + "~" + esc(b.e) + " · 장소</label><input class=\"efld\" id=\"na_p\" placeholder=\"접수대 / 무대 / 등반로\" />" +
+      '<label class="elab">업무</label><input class="efld" id="na_task" placeholder="무엇을 하는지" />' +
+      '<label class="elab">총괄 (콤마)</label><input class="efld" id="na_lead" placeholder="고석우" />' +
+      '<label class="elab">지원</label><input class="efld" id="na_sub" placeholder="양종철, 이재중" />' +
+      '<label class="elab">유의사항</label><input class="efld" id="na_note" />' +
+      '<div class="ebtns"><button class="ebtn pri" data-a="asave" data-id="' + esc(b.id) + '">추가</button>' +
+      '<button class="ebtn" data-a="cancel">취소</button></div>' +
+    "</div></div>";
   }
 
   function renderPeople(){
@@ -585,12 +755,19 @@ section[data-view].on{display:block}
     var m = MATRIX[p] || ["-","-","-","-","-"];
     var ni = nowInfo();
     var out = '<div class="sec" style="margin-top:18px">시간대별 업무' + (ALIAS[p] ? " · " + esc(ALIAS[p].join(", ")) : "") + "<span></span><em>5구간</em></div>";
-    out += '<div class="matrix">' + SLOTS.map(function(s, i){
-      var isNow = ni && ni.m >= mins(s[0]) && ni.m < mins(s[1]);
+    out += '<div class="matrix">' + SLOTS.map(function(sl, i){
+      var isNow = ni && ni.m >= mins(sl[0]) && ni.m < mins(sl[1]);
       var v = m[i] || "-";
-      var parts = v === "-" ? [] : v.split(" / ");
-      return '<div class="slot' + (isNow ? " now" : "") + '"><div class="st">' + s[0] + "<small>~" + s[1] + "</small></div>" +
-        '<div class="sv' + (parts.length ? "" : " none") + '">' + (parts.length ? parts.map(function(x){ return "<i>" + esc(x) + "</i>"; }).join("") : "배정 없음 · 대기·지원") + "</div></div>";
+      if(state.editing && state.edit === "mtx:" + p + ":" + i){
+        return '<div class="slot"><div class="st">' + sl[0] + "<small>~" + sl[1] + '</small></div><div class="eform" style="margin:0">' +
+          '<input class="efld" id="em_v" value="' + esc(v === "-" ? "" : v) + '" placeholder="여러 건은 / 로 구분" />' +
+          '<div class="ebtns"><button class="ebtn pri" data-a="msave" data-p="' + esc(p) + '" data-slot="' + i + '">저장</button>' +
+          '<button class="ebtn" data-a="cancel">취소</button></div></div></div>';
+      }
+      var parts = v === "-" || !v ? [] : v.split(" / ");
+      return '<div class="slot' + (isNow ? " now" : "") + '"><div class="st">' + sl[0] + "<small>~" + sl[1] + "</small></div>" +
+        '<div class="sv' + (parts.length ? "" : " none") + '" data-a="medit" data-p="' + esc(p) + '" data-slot="' + i + '">' +
+        (parts.length ? parts.map(function(x){ return "<i>" + esc(x) + "</i>"; }).join("") : "배정 없음 · 대기·지원") + "</div></div>";
     }).join("") + "</div>";
 
     /* 상세 타임라인: 이 사람이 들어간 항목 */
@@ -615,8 +792,16 @@ section[data-view].on{display:block}
   }
 
   function renderCue(){
-    $("cue").innerHTML = CUE.map(function(c){
-      return "<li><div class='ct'>" + esc(c[0]) + "</div><div><div class='cn'>" + esc(c[1]) + "</div><div class='cw'>" + esc(c[2]) + "</div></div></li>";
+    $("cue").innerHTML = CUE.map(function(c, i){
+      if(state.editing && state.edit === "cue:" + i){
+        return '<li><div class="eform" style="grid-column:1/-1">' +
+          '<label class="elab">시간</label><input class="efld" id="ec_t" value="' + esc(c[0]) + '" />' +
+          '<label class="elab">순서</label><input class="efld" id="ec_n" value="' + esc(c[1]) + '" />' +
+          '<label class="elab">담당·비고</label><input class="efld" id="ec_w" value="' + esc(c[2]) + '" />' +
+          '<div class="ebtns"><button class="ebtn pri" data-a="csave" data-i="' + i + '">저장</button>' +
+          '<button class="ebtn" data-a="cancel">취소</button></div></div></li>';
+      }
+      return '<li data-a="cedit" data-i="' + i + '"><div class="ct">' + esc(c[0]) + '</div><div><div class="cn">' + esc(c[1]) + '</div><div class="cw">' + esc(c[2]) + "</div></div></li>";
     }).join("");
   }
 
@@ -632,6 +817,7 @@ section[data-view].on{display:block}
     renderHeader();
     renderTimeline();
     renderPeople();
+    renderCue();
   }
 
   /* ───────── 이벤트 ───────── */
@@ -654,13 +840,125 @@ section[data-view].on{display:block}
     b.addEventListener("click", function(){ setView(b.dataset.v); });
   });
 
+  /* ───────── 편집 ───────── */
+  $("editToggle").addEventListener("click", function(){
+    if(state.editing){
+      state.editing = false; state.key = ""; state.edit = null; state.addTo = null;
+      document.body.classList.remove("editing");
+      $("editLabel").textContent = "편집";
+      $("editToggle").setAttribute("aria-pressed", "false");
+      renderAll();
+      return;
+    }
+    if(!API){ toast("config.js에 웹앱 URL이 없어 편집할 수 없습니다", "bad"); return; }
+    var pin = window.prompt("관리자 PIN을 입력하세요");
+    if(!pin) return;
+    call({action:"auth", key:pin}).then(function(){
+      state.key = pin; state.editing = true;
+      document.body.classList.add("editing");
+      $("editLabel").textContent = "편집 끝내기";
+      $("editToggle").setAttribute("aria-pressed", "true");
+      if(state.source !== "sheet"){
+        toast("시트에 안내 데이터가 없습니다. Guide.gs의 guideSeed를 먼저 실행하세요.", "bad");
+      }
+      renderAll();
+    }).catch(function(err){ toast(err.message, "bad"); });
+  });
+
+  function afterSave(msg){
+    state.edit = null; state.addTo = null;
+    return loadRemote().then(function(){ renderAll(); toast(msg, "good"); });
+  }
+
+  function onEditClick(e){
+    var el = e.target.closest("[data-a]");
+    if(!el) return;
+    var a = el.dataset.a;
+
+    /* 편집 모드가 아닐 때는 클릭 대상만 무시 */
+    if(!state.editing) return;
+    e.preventDefault();
+
+    if(a === "cancel"){ state.edit = null; state.addTo = null; renderAll(); return; }
+    if(a === "bedit"){ state.edit = "block:" + el.dataset.id; renderTimeline(); return; }
+    if(a === "tedit"){ state.edit = "task:" + el.dataset.id; renderTimeline(); return; }
+    if(a === "addopen"){ state.addTo = el.dataset.id; state.edit = null; renderTimeline(); return; }
+    if(a === "medit"){ state.edit = "mtx:" + el.dataset.p + ":" + el.dataset.slot; renderPeople(); return; }
+    if(a === "cedit"){ state.edit = "cue:" + el.dataset.i; renderCue(); return; }
+
+    if(a === "bsave"){
+      admin({action:"guideBlockSet", id:el.dataset.id,
+             s:$("eb_s").value.trim(), e:$("eb_e").value.trim(), label:$("eb_l").value.trim()})
+        .then(function(){ return afterSave("시간대 저장"); })
+        .catch(function(err){ toast(err.message, "bad"); });
+      return;
+    }
+    if(a === "tsave"){
+      if(!$("et_task").value.trim()){ toast("업무 내용은 비울 수 없습니다", "bad"); return; }
+      admin({action:"guideTaskSet", id:el.dataset.id,
+             p:$("et_p").value.trim(), task:$("et_task").value.trim(),
+             lead:$("et_lead").value.trim(), sub:$("et_sub").value.trim(), note:$("et_note").value.trim(),
+             actor:state.me || ""})
+        .then(function(){ return afterSave("저장했습니다"); })
+        .catch(function(err){ toast(err.message, "bad"); });
+      return;
+    }
+    if(a === "tdel"){
+      if(!window.confirm("이 업무를 삭제합니다. 되돌릴 수 없습니다.")) return;
+      admin({action:"guideTaskDel", id:el.dataset.id})
+        .then(function(){ return afterSave("삭제했습니다"); })
+        .catch(function(err){ toast(err.message, "bad"); });
+      return;
+    }
+    if(a === "tup" || a === "tdown"){
+      admin({action:"guideTaskMove", id:el.dataset.id, dir:a === "tup" ? "up" : "down"})
+        .then(function(){ return afterSave("순서 변경"); })
+        .catch(function(err){ toast(err.message, "bad"); });
+      return;
+    }
+    if(a === "asave"){
+      if(!$("na_task").value.trim()){ toast("업무 내용을 입력해 주세요", "bad"); return; }
+      admin({action:"guideTaskAdd", blockId:el.dataset.id,
+             p:$("na_p").value.trim(), task:$("na_task").value.trim(),
+             lead:$("na_lead").value.trim(), sub:$("na_sub").value.trim(), note:$("na_note").value.trim(),
+             actor:state.me || ""})
+        .then(function(){ return afterSave("추가했습니다"); })
+        .catch(function(err){ toast(err.message, "bad"); });
+      return;
+    }
+    if(a === "msave"){
+      admin({action:"guideMtxSet", name:el.dataset.p, slot:(+el.dataset.slot) + 1,
+             value:$("em_v").value.trim(), actor:state.me || ""})
+        .then(function(){ return afterSave("저장했습니다"); })
+        .catch(function(err){ toast(err.message, "bad"); });
+      return;
+    }
+    if(a === "csave"){
+      admin({action:"guideCueSet", index:el.dataset.i,
+             time:$("ec_t").value.trim(), title:$("ec_n").value.trim(), who:$("ec_w").value.trim(),
+             actor:state.me || ""})
+        .then(function(){ return afterSave("저장했습니다"); })
+        .catch(function(err){ toast(err.message, "bad"); });
+      return;
+    }
+  }
+
+  ["timeline", "personBody", "cue"].forEach(function(id){
+    $(id).addEventListener("click", onEditClick);
+  });
+
   /* ───────── 시작 ───────── */
+  stampIds();
   readHash();
   renderMeSelect();
-  renderCue();
   renderAll();
   setView(state.view);
   setInterval(renderHeader, 60000);
+  loadRemote().then(function(){
+    renderMeSelect();
+    $("me").value = state.me;
+    renderAll();
+  });
 })();
 </script>
 </body>

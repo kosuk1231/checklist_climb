@@ -71,7 +71,10 @@ function doGet(e) {
       case 'export':     guard(p); out = ok({ code: exportItemsJs() }); break;
       case 'seed':       guard(p); out = ok(seedRows(p.force === '1')); break;
 
-      default: out = ok(listRows());
+      /* 당일 안내 액션은 아래 default 에서 guideRoute 로 위임 */
+      default:
+        var g = (typeof guideRoute === 'function') ? guideRoute(p) : null;
+        out = ok(g !== null ? g : listRows());
     }
   } catch (err) {
     out = { ok: false, error: String(err && err.message ? err.message : err) };
@@ -500,4 +503,383 @@ var ITEMS = [
   ['ETC03', '기타', '홍보부스 위치 표기용 출력 용지', '단체별 1매', '신단비'],
   ['ETC04', '기타', '구급용품', '일괄', '정소희'],
   ['ETC05', '기타', '행사 당일 단체 카톡방 개설(회장 포함)', '1개', '고석우']
+];
+
+
+/* ══════════════════════════════════════════════════════════════
+   여기서부터 당일 안내(guide.html) 편집 API
+   시트 4개: 당일시간블록 / 당일업무 / 개인별업무 / 개회식큐시트
+   최초 1회 guideSeed 실행 필요
+   ══════════════════════════════════════════════════════════════ */
+
+var G_BLOCK = '당일시간블록';   // blockId | 시작 | 종료 | 블록명 | 순서
+var G_TASK  = '당일업무';       // id | blockId | 장소 | 업무 | 총괄 | 지원 | 유의 | 순서
+var G_SLOT  = '당일시간구간';   // 시작 | 종료  (개인별 매트릭스 열 기준)
+var G_MTX   = '개인별업무';     // 이름 | 구간1..5
+var G_CUE   = '개회식큐시트';   // 시간 | 순서 | 담당
+
+var G_HEADERS = {};
+G_HEADERS[G_BLOCK] = ['blockId', '시작', '종료', '블록명', '순서'];
+G_HEADERS[G_TASK]  = ['id', 'blockId', '장소', '업무', '총괄', '지원', '유의', '순서'];
+G_HEADERS[G_SLOT]  = ['시작', '종료'];
+G_HEADERS[G_MTX]   = ['이름', '구간1', '구간2', '구간3', '구간4', '구간5'];
+G_HEADERS[G_CUE]   = ['시간', '순서', '담당'];
+
+/* ───────── 라우팅 (Code.gs 의 doGet 에서 위임) ───────── */
+
+function guideRoute(p) {
+  switch (p.action) {
+    case 'guide':        return guideRead();
+    case 'guideTaskSet': guard(p); return guideTaskSet(p);
+    case 'guideTaskAdd': guard(p); return guideTaskAdd(p);
+    case 'guideTaskDel': guard(p); return guideRowDel(G_TASK, 'id', p.id);
+    case 'guideTaskMove':guard(p); return guideMove(G_TASK, p.id, p.dir);
+    case 'guideBlockSet':guard(p); return guideBlockSet(p);
+    case 'guideMtxSet':  guard(p); return guideMtxSet(p);
+    case 'guideCueSet':  guard(p); return guideCueSet(p);
+    case 'guideSeed':    guard(p); return guideSeed(p.force === '1');
+    default: return null;
+  }
+}
+
+/* ───────── 공용 ───────── */
+
+function gSheet(name) {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sh = ss.getSheetByName(name);
+  if (!sh) {
+    sh = ss.insertSheet(name);
+    var h = G_HEADERS[name];
+    sh.getRange(1, 1, 1, h.length).setValues([h])
+      .setFontWeight('bold').setBackground('#1e7a4b').setFontColor('#ffffff');
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function gRows(name) {
+  var sh = gSheet(name);
+  var last = sh.getLastRow();
+  if (last < 2) return [];
+  var w = G_HEADERS[name].length;
+  return sh.getRange(2, 1, last - 1, w).getValues()
+    .filter(function (r) { return String(r[0]).length > 0; })
+    .map(function (r) { return r.map(function (c) { return String(c == null ? '' : c); }); });
+}
+
+function gFindRow(name, keyCol, key) {
+  var sh = gSheet(name);
+  var last = sh.getLastRow();
+  if (last < 2) return -1;
+  var idx = G_HEADERS[name].indexOf(keyCol);
+  var v = sh.getRange(2, idx + 1, last - 1, 1).getValues();
+  for (var i = 0; i < v.length; i++) if (String(v[i][0]) === String(key)) return i + 2;
+  return -1;
+}
+
+function gSetCells(name, row, patch) {
+  var sh = gSheet(name);
+  var h = G_HEADERS[name];
+  var changed = [];
+  for (var k in patch) {
+    var c = h.indexOf(k);
+    if (c > -1 && patch[k] !== undefined) {
+      sh.getRange(row, c + 1).setValue(String(patch[k]));
+      changed.push(k);
+    }
+  }
+  return changed;
+}
+
+function guideRowDel(name, keyCol, key) {
+  var row = gFindRow(name, keyCol, key);
+  if (row < 0) throw new Error('항목을 찾을 수 없습니다: ' + key);
+  gSheet(name).deleteRow(row);
+  audit('안내 삭제', key, name, '');
+  return { id: key, removed: true };
+}
+
+function guideMove(name, id, dir) {
+  var sh = gSheet(name);
+  var row = gFindRow(name, 'id', id);
+  if (row < 0) throw new Error('항목을 찾을 수 없습니다: ' + id);
+  var w = G_HEADERS[name].length;
+  var target = String(dir) === 'up' ? row - 1 : row + 1;
+  if (target < 2 || target > sh.getLastRow()) return { id: id, moved: false };
+  /* 같은 블록 안에서만 이동 */
+  var bi = G_HEADERS[name].indexOf('blockId') + 1;
+  if (bi > 0 && sh.getRange(row, bi).getValue() !== sh.getRange(target, bi).getValue()) {
+    return { id: id, moved: false };
+  }
+  var a = sh.getRange(row, 1, 1, w).getValues()[0];
+  var b = sh.getRange(target, 1, 1, w).getValues()[0];
+  sh.getRange(row, 1, 1, w).setValues([b]);
+  sh.getRange(target, 1, 1, w).setValues([a]);
+  return { id: id, moved: true };
+}
+
+/* ───────── 읽기 ───────── */
+
+function guideRead() {
+  var blocks = gRows(G_BLOCK), tasks = gRows(G_TASK);
+  if (!blocks.length) return { empty: true };
+
+  blocks.sort(function (a, b) { return (parseInt(a[4], 10) || 0) - (parseInt(b[4], 10) || 0); });
+
+  var byBlock = {};
+  tasks.forEach(function (t) {
+    if (!byBlock[t[1]]) byBlock[t[1]] = [];
+    byBlock[t[1]].push(t);
+  });
+
+  var tl = blocks.map(function (b) {
+    var list = (byBlock[b[0]] || []).sort(function (x, y) {
+      return (parseInt(x[7], 10) || 0) - (parseInt(y[7], 10) || 0);
+    });
+    return {
+      id: b[0], s: b[1], e: b[2], label: b[3],
+      t: b[1] + '~' + b[2],
+      items: list.map(function (t) {
+        return {
+          id: t[0], p: t[2], task: t[3],
+          lead: splitNames(t[4]), sub: splitNames(t[5]), note: t[6]
+        };
+      })
+    };
+  });
+
+  var slots = gRows(G_SLOT).map(function (r) { return [r[0], r[1]]; });
+  var mtx = {};
+  gRows(G_MTX).forEach(function (r) { mtx[r[0]] = [r[1], r[2], r[3], r[4], r[5]]; });
+  var cue = gRows(G_CUE).map(function (r) { return [r[0], r[1], r[2]]; });
+
+  return { tl: tl, slots: slots, matrix: mtx, cue: cue };
+}
+
+function splitNames(v) {
+  return String(v || '').split(/\s*,\s*/).filter(function (s) { return s.length; });
+}
+
+/* ───────── 쓰기 ───────── */
+
+function guideTaskSet(p) {
+  var row = gFindRow(G_TASK, 'id', p.id);
+  if (row < 0) throw new Error('업무를 찾을 수 없습니다: ' + p.id);
+  var patch = {};
+  ['장소', '업무', '총괄', '지원', '유의'].forEach(function (k, i) {
+    var src = ['p', 'task', 'lead', 'sub', 'note'][i];
+    if (p[src] !== undefined) patch[k] = p[src];
+  });
+  var changed = gSetCells(G_TASK, row, patch);
+  audit('안내 수정', p.id, changed.join(','), p.actor || '');
+  return { id: p.id, changed: changed };
+}
+
+function guideTaskAdd(p) {
+  var bid = String(p.blockId || '');
+  if (!bid) throw new Error('시간대를 선택해 주세요');
+  if (!String(p.task || '').trim()) throw new Error('업무 내용을 입력해 주세요');
+
+  var sh = gSheet(G_TASK);
+  var rows = gRows(G_TASK);
+  var maxN = 0, insertAt = sh.getLastRow() + 1, order = 1;
+  for (var i = 0; i < rows.length; i++) {
+    var m = String(rows[i][0]).match(/^(.+)-(\d+)$/);
+    if (m && m[1] === bid) maxN = Math.max(maxN, parseInt(m[2], 10));
+    if (rows[i][1] === bid) { insertAt = i + 3; order = (parseInt(rows[i][7], 10) || 0) + 1; }
+  }
+  var id = bid + '-' + String(maxN + 1).padStart(2, '0');
+  if (insertAt <= sh.getLastRow()) sh.insertRowBefore(insertAt);
+  sh.getRange(insertAt, 1, 1, G_HEADERS[G_TASK].length).setValues([[
+    id, bid, String(p.p || ''), String(p.task), String(p.lead || ''),
+    String(p.sub || ''), String(p.note || ''), order
+  ]]);
+  audit('안내 추가', id, String(p.task), p.actor || '');
+  return { id: id };
+}
+
+function guideBlockSet(p) {
+  var row = gFindRow(G_BLOCK, 'blockId', p.id);
+  if (row < 0) throw new Error('시간대를 찾을 수 없습니다: ' + p.id);
+  var patch = {};
+  if (p.s !== undefined) patch['시작'] = p.s;
+  if (p.e !== undefined) patch['종료'] = p.e;
+  if (p.label !== undefined) patch['블록명'] = p.label;
+  var changed = gSetCells(G_BLOCK, row, patch);
+  audit('안내 시간대 수정', p.id, changed.join(','), p.actor || '');
+  return { id: p.id, changed: changed };
+}
+
+function guideMtxSet(p) {
+  var name = String(p.name || '');
+  if (!name) throw new Error('이름이 없습니다');
+  var sh = gSheet(G_MTX);
+  var row = gFindRow(G_MTX, '이름', name);
+  if (row < 0) {
+    row = sh.getLastRow() + 1;
+    sh.getRange(row, 1).setValue(name);
+  }
+  var i = parseInt(p.slot, 10);
+  if (!(i >= 1 && i <= 5)) throw new Error('구간 번호가 잘못되었습니다');
+  sh.getRange(row, i + 1).setValue(String(p.value == null ? '' : p.value));
+  audit('안내 개인별 수정', name, '구간' + i, p.actor || '');
+  return { name: name, slot: i };
+}
+
+function guideCueSet(p) {
+  var i = parseInt(p.index, 10);
+  var sh = gSheet(G_CUE);
+  var row = i + 2;
+  if (row < 2 || row > sh.getLastRow()) throw new Error('큐시트 행을 찾을 수 없습니다');
+  if (p.time  !== undefined) sh.getRange(row, 1).setValue(String(p.time));
+  if (p.title !== undefined) sh.getRange(row, 2).setValue(String(p.title));
+  if (p.who   !== undefined) sh.getRange(row, 3).setValue(String(p.who));
+  audit('안내 큐시트 수정', 'CUE' + i, '', p.actor || '');
+  return { index: i };
+}
+
+/* ───────── 시드 ───────── */
+
+function guideSeed(force) {
+  var sets = [
+    [G_BLOCK, GUIDE_BLOCKS], [G_TASK, GUIDE_TASKS],
+    [G_SLOT, GUIDE_SLOTS], [G_MTX, GUIDE_MATRIX], [G_CUE, GUIDE_CUE]
+  ];
+  var out = {};
+  sets.forEach(function (pair) {
+    var name = pair[0], data = pair[1];
+    var sh = gSheet(name);
+    if (!force && sh.getLastRow() > 1) { out[name] = 'skip'; return; }
+    if (sh.getLastRow() > 1) {
+      sh.getRange(2, 1, sh.getLastRow() - 1, G_HEADERS[name].length).clearContent();
+    }
+    sh.getRange(2, 1, data.length, G_HEADERS[name].length).setValues(data);
+    out[name] = data.length;
+  });
+  return out;
+}
+
+/** 강제 초기화 — 안내 시트를 코드의 기본값으로 되돌립니다 */
+function guideSeedReset() { return guideSeed(true); }
+
+/* ───────── 기본값 ───────── */
+
+var GUIDE_BLOCKS = [
+  ['B01', '07:00', '08:00', '집결·세팅', '1'],
+  ['B02', '08:00', '08:30', '의전·선발대', '2'],
+  ['B03', '08:30', '09:00', '접수 시작', '3'],
+  ['B04', '09:00', '09:30', '개회식', '4'],
+  ['B05', '09:30', '10:00', '경품·출발', '5'],
+  ['B06', '10:00', '12:00', '등반', '6'],
+  ['B07', '12:00', '13:00', '완주·정리', '7'],
+  ['B08', '13:00', '16:00', '식사·복귀', '8']
+];
+
+var GUIDE_TASKS = [
+  ['B01-01', 'B01', '벚꽃마당', '집결', '고석우', '전체 직원', '', '1'],
+  ['B01-02', 'B01', '접수대', '접수대 세팅 (테이블 4개)', '이진선, 정소희', '최봄, 최지혜, 유예리, 나한송, 손채은, 김도현, 연대회의', '', '2'],
+  ['B01-03', 'B01', '접수대', '노트북 세팅 · 명단 조회 확인', '이진선, 정소희', '', '조회 3대 + 예비', '3'],
+  ['B01-04', 'B01', '접수대', '번호 표지 부착, 줄 유도선 설치', '최봄, 최지혜', '', '접수대 1·2·3 구분, 한 줄 대기 후 분산', '4'],
+  ['B01-05', 'B01', '무대', '무대 세팅', '이지선', '고석우, 이정하, 정지연', '태극기·단상 2개·명패', '5'],
+  ['B01-06', 'B01', '무대', '음향업체 관리', '양종철', '이재중', '마이크 실사용 2대', '6'],
+  ['B01-07', 'B01', '무대', '경품 실물 전시 세팅', '양종철, 이재중', '', '철제테이블, 포장 없이 실물', '7'],
+  ['B01-08', 'B01', '무대', '현수막 거치', '양종철', '이재중, 상비군', '', '8'],
+  ['B01-09', 'B01', '등반로', '시작점 배너 설치 (3곳)', '이해창', '채유리', '물통 배너', '9'],
+  ['B01-10', 'B01', '부스', '청년위원회 부스 준비', '신단비', '', '', '10'],
+  ['B01-11', 'B01', '전체', '인력배치 · 스탭관리 · 비상연락망 배부', '정승아', '이해창', '', '11'],
+  ['B01-12', 'B01', '전체', '김밥 도착 (80줄) · 1인 1줄 배분', '고석우', '', '07:30~08:00 도착', '12'],
+  ['B02-01', 'B02', '입구', '의전 및 의전관리', '정승아, 이지선', '회장단', '부회장별 전담 배정, 관리사무소 앞 대기', '1'],
+  ['B02-02', 'B02', '입구', '선발대 출발', '이해창', '채유리, 유예리, 나한송, 손채은, 김도현, 박소리, 배영미, 이세경, 황재우', '기수 홍영호 · 1지점까지 인솔', '2'],
+  ['B02-03', 'B02', '무대 주변', '음향라인 통로 확보 (~10:00)', '양종철', '상비군', '입구 통로 지속 확보', '3'],
+  ['B03-01', 'B03', '접수대', '접수대 운영 (3조 · ~10:00)', '이진선, 정소희', '최봄, 최지혜, 구본영, 안보현, 태혜영, 연대회의', '① 줄서기 안내 ② 명단 확인·기념품 배부 · 조별 연대회의 3명 + 담당 1명', '1'],
+  ['B03-02', 'B03', '접수대', '현장접수 처리 (QR 자가입력)', '정소희', '연대회의', '확인 후 기념품 배부', '2'],
+  ['B03-03', 'B03', '무대', '개회식 준비', '이지선', '고석우, 이정하', '사회 조은정 부위원장', '3'],
+  ['B03-04', 'B03', '무대', '사전행사', '이경원', '양종철, 이정하', '경품 투썸 5,000원권 20개', '4'],
+  ['B03-05', 'B03', '부스', '이슈파이팅 부스 (공정위원회)', '고석우', '', 'SNS 이벤트·서명', '5'],
+  ['B03-06', 'B03', '부스', '함께하는 단체 관리 · 청년위원회 부스', '신단비', '', '', '6'],
+  ['B04-01', 'B04', '무대', '국민의례', '조은정', '고석우, 이정하', '국기에 대한 경례만, 애국가 생략', '1'],
+  ['B04-02', 'B04', '무대', '개회식 (개회사·축사·연대사·회원축사)', '이지선', '고석우, 이정하, 이재중', '영상 이재중 · 내빈소개 서대문구청장→국회의원→서울시의회', '2'],
+  ['B04-03', 'B04', '무대', '수어 통역', '윤남', '', '', '3'],
+  ['B04-04', 'B04', '전체', '사진촬영 (개회식·스케치·전체)', '고석우', '김영민, 김진래, 김태웅', '김영민 시장·내빈 스냅 / 김진래 전체·단체 / 김태웅 회원·스케치', '4'],
+  ['B04-05', 'B04', '열매존', '사진촬영 (열매존 인근)', '정지연', '', '', '5'],
+  ['B05-01', 'B05', '무대', '경품 이벤트 (09:30~09:35)', '이경원, 조은정', '양종철, 이정하', '1~3등 사전접수 회원 추첨 · 4등 시장님 호명 숫자로 전화번호 끝자리 · 수령증 서명 양종철(1~3등만)', '1'],
+  ['B05-02', 'B05', '무대→등반로', '기념촬영 및 등반 안내 (09:35~)', '이지선', '', '단체사진 후 등반 시작 09:40~09:45', '2'],
+  ['B05-03', 'B05', '부스구역', '어린이 이벤트 · 문화상품권 배부 (~10:30)', '최봄', '최지혜', '개회식 종료 후 · 화살표 머리띠 착용 · 도장 날인', '3'],
+  ['B06-01', 'B06', '1지점 숲속무대', '스탬프 1지점 운영', '유예리, 김도현', '', '도장 5개 · 몰림 예상', '1'],
+  ['B06-02', 'B06', '2지점 전망대', '스탬프 2지점 운영', '나한송, 손채은', '', '도장 3~5개 · 팀 하산 안내 병행', '2'],
+  ['B06-03', 'B06', '3지점 너와집쉼터', '스탬프 3지점 운영', '이해창, 채유리', '', '도장 3~5개', '3'],
+  ['B06-04', 'B06', '등반로 전 구간', '갈림길 안내', '이해창', '박소리, 배영미, 이세경, 황재우, 상비군', '초록 손수건·깃발 · 초입 집중 배치', '4'],
+  ['B06-05', 'B06', '등반로', '등반 스케치 촬영', '김영민, 김진래, 김태웅', '', '', '5'],
+  ['B06-06', 'B06', '부스구역', '청년위원회 부스 운영', '신단비', '', '', '6'],
+  ['B06-07', 'B06', '무대', '무대 대기 · 내빈 응대', '이지선, 정승아', '', '', '7'],
+  ['B06-08', 'B06', '부스구역', '아이스크림 현장 도착 (11:30)', '최봄', '', '공제회 후원 1,000개 · 아이스박스', '8'],
+  ['B07-01', 'B07', '부스구역', '완주 확인 (스탬프 3개 확인 후 용지 회수)', '이진선', '이정하, 구본영, 안보현, 태혜영', '확인 후 옆 QR 등록으로 연결', '1'],
+  ['B07-02', 'B07', '부스구역', 'QR 등록 안내 (확인자만 개인정보 입력)', '이정하', '양종철', 'QR 출력물 다수 게시', '2'],
+  ['B07-03', 'B07', '부스구역', '아이스크림 배분 (12:00~12:30)', '최지혜', '최봄, 연대회의', '', '3'],
+  ['B07-04', 'B07', '종료지점', '갈림길·샛길 안내', '정소희, 정지연', '', '배너 챙기기', '4'],
+  ['B07-05', 'B07', '등반로', '안내 표식 철거 · 쓰레기 수거', '이재중, 신단비', '상비군', '1→2→3지점 순으로 올라가며 철거, 위팀과 합류 후 도보 하산', '5'],
+  ['B07-06', 'B07', '무대·접수대', '정리 및 청소', '고석우, 양종철', '정승아, 상비군, 김영민, 김진래', '재활용은 화장실 앞 배출, 일반쓰레기는 협회 수거', '6'],
+  ['B07-07', 'B07', '무대 앞', '내빈 안내', '이지선, 정승아', '회장단', '', '7'],
+  ['B07-08', 'B07', '벚꽃마당', '참가자 해산 (12:00~12:30)', '전체', '', '', '8'],
+  ['B08-01', 'B08', '이동', '식사 장소 이동 (13:00)', '고석우', '전체 직원', '도보 13분 · 677m', '1'],
+  ['B08-02', 'B08', '연탄생고기집 홍은점', '진행요원 식사 (13:30~15:30)', '고석우', '전체 직원', '', '2'],
+  ['B08-03', 'B08', '협회', '복귀 · 물품 정리 (15:30~16:00)', '고석우', '전체 직원', '트럭 하차 완료(일요일 반납) · 스파크 이지선 / 카니발 정승아 / 트럭 고석우', '3']
+];
+
+var GUIDE_SLOTS = [
+  ['07:00', '08:00'],
+  ['08:00', '10:00'],
+  ['10:00', '12:00'],
+  ['12:00', '13:00'],
+  ['13:00', '16:00']
+];
+
+var GUIDE_MATRIX = [
+  ['이지선', '무대 세팅', '의전(입구) / 개회식 준비·진행', '무대 대기', '내빈 안내', '스파크 운전 / 식사·물품 정리'],
+  ['정승아', '인력배치·스탭관리', '의전 / 내빈 전담 배정 확인', '내빈 응대', '내빈 안내', '카니발 운전 / 식사·물품 정리'],
+  ['고석우', '집결 총괄', '개회식 지원 / 이슈파이팅 부스(공정위원회)', '등반로 연락 총괄', '정리·청소', '트럭 운전 / 식사 인솔·물품 정리'],
+  ['이정하', '무대 세팅', '사전행사·개회식 / 경품 이벤트 지원', '-', '완주 확인·QR 등록', '식사·물품 정리'],
+  ['양종철', '음향업체 관리', '음향라인 통로 확보 / 경품 실물 전시 / 현수막 거치 / 수령증 서명', '-', 'QR 등록 안내 / 정리·청소', '식사·물품 정리'],
+  ['이재중', '업체 관리 지원', '경품 실물 전시 / 현수막 거치 / 개회식 영상 촬영', '-', '등반코스 안내 표식 철거', '식사·물품 정리'],
+  ['이해창', '시작점 배너 설치', '스탭관리 지원 / 선발대 출발 인솔', '스탬프 3지점 / 갈림길 안내 총괄', '철수 합류', '식사·물품 정리'],
+  ['채유리', '시작점 배너 설치', '선발대', '스탬프 3지점 운영', '철수 합류', '식사·물품 정리'],
+  ['신단비', '청년위원회 부스 준비', '함께하는 단체 관리 / 청년위원회 부스', '청년위원회 부스 운영', '등반코스 안내 표식 철거', '식사·물품 정리'],
+  ['이진선', '접수대 세팅 / 노트북·명단 조회', '접수대 1 총괄·운영 / 경품 배부', '-', '완주 확인(스탬프 확인·용지 회수)', '식사·물품 정리'],
+  ['정소희', '접수대 세팅 / 노트북 세팅', '접수대 2 총괄·운영 / 현장접수 처리 / 경품 배부', '-', '종료지점 샛길 안내', '식사·물품 정리'],
+  ['최봄', '접수대 세팅 / 번호 표지·줄 유도선', '접수대 접수 / 어린이 이벤트', '어린이 이벤트 · 아이스크림 도착 대기(11:30)', '기념품·경품 배부 지원', '식사·물품 정리'],
+  ['최지혜', '접수대 세팅 / 번호 표지·줄 유도선', '접수대 접수 / 어린이 이벤트 지원', '-', '아이스크림 배분', '식사·물품 정리'],
+  ['유예리', '접수대 세팅', '선발대', '스탬프 1지점 운영', '철수 합류', '식사·물품 정리'],
+  ['정지연', '무대 세팅', '행사 사진 촬영 총괄(열매존 인근)', '-', '종료지점 샛길 안내', '식사·물품 정리'],
+  ['나한송', '접수대 세팅', '선발대', '스탬프 2지점 운영', '철수 합류', '식사·물품 정리'],
+  ['손채은', '접수대 세팅', '선발대', '스탬프 2지점 운영', '철수 합류', '식사·물품 정리'],
+  ['김도현', '접수대 세팅', '선발대', '스탬프 1지점 운영', '철수 합류', '식사·물품 정리'],
+  ['조은정', '-', '개회식 사회 / 국민의례 진행 / 경품 이벤트', '-', '-', '-'],
+  ['허곤', '-', '내빈 맞이', '-', '-', '-'],
+  ['홍영호', '-', '선발대 기수(1지점까지 인솔)', '-', '-', '-'],
+  ['구본영', '-', '접수대 협조', '-', '완주 확인·기념품 지원', '-'],
+  ['안보현', '-', '접수대 협조', '-', '완주 확인·기념품 지원', '-'],
+  ['태혜영', '-', '접수대 협조', '-', '완주 확인·기념품 지원', '-'],
+  ['박소리', '-', '선발대', '갈림길 안내', '-', '-'],
+  ['배영미', '-', '선발대', '갈림길 안내', '-', '-'],
+  ['이세경', '-', '선발대', '갈림길 안내', '-', '-'],
+  ['황재우', '-', '선발대', '갈림길 안내', '-', '-'],
+  ['이경원', '-', '사전행사 진행 / 경품 이벤트 진행', '-', '-', '-'],
+  ['김영민', '-', '개회식·스케치·전체 촬영(시장·주요내빈 스냅)', '등반 스케치 촬영', '정리 지원', '-'],
+  ['김진래', '-', '개회식·전체·단체사진 촬영', '등반 스케치 촬영', '정리 지원', '-'],
+  ['김태웅', '-', '회원·스케치 촬영', '등반 스케치 촬영', '-', '-'],
+  ['윤남', '-', '수어 통역', '-', '-', '-'],
+  ['상비군', '현수막 거치', '음향라인 통로 확보 지원', '갈림길 안내', '등반코스 안내 표식 철거 / 청소', '-'],
+  ['회장단', '-', '회원 맞이 · 내빈 의전(관리사무소 앞 대기)', '-', '내빈 안내', '-'],
+  ['연대회의', '접수대 세팅', '접수인원 관리 / 기념품·경품 배부', '-', '아이스크림 배부', '-']
+];
+
+var GUIDE_CUE = [
+  ['09:00', '개회 및 내빈소개', '조은정 권익위원회 부위원장'],
+  ['09:08', '개회사', '곽경인 서울시사회복지사협회장'],
+  ['09:13', '축사', '오세훈 서울특별시장 외 주요 내빈'],
+  ['09:23', '연대사 및 환영사', '김경우 서울시의회 보건복지위원장 · 박운기 서대문구청장 · 김연은 연대회의 상임대표'],
+  ['09:28', '회원 축사', '청년사회복지사 (청년위원회)'],
+  ['09:30', '경품 이벤트', '조은정 부위원장 · 이경원 대표 진행 · 시장님 숫자 호명'],
+  ['09:35', '기념촬영 및 등반 안내', '단체사진 촬영'],
+  ['09:40', '등반 시작', '선발대 기수 홍영호 → 안산 등반']
 ];
