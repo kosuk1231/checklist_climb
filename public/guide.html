@@ -138,6 +138,9 @@ section[data-view].on{display:block}
 .glist li:first-child{border-top:0}
 .glist b{font-weight:700;font-size:14.5px;letter-spacing:-.01em;white-space:nowrap}
 .glist span{color:var(--muted);word-break:keep-all}
+body.editing .glist li:not(.gedit){cursor:pointer}
+body.editing .glist li:not(.gedit) b::after{content:"✎";font-size:11px;color:var(--accent);margin-left:5px;font-weight:400}
+.glist li.gedit{display:block;background:var(--accent-soft);border-radius:8px;padding:4px 10px 10px;margin:6px 0}
 
 /* 장소 */
 .route{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}
@@ -510,75 +513,59 @@ section[data-view].on{display:block}
   ];
 
   var HOSTS = [
-    ["곽경인","사회복지사협회장 · 성수종합사회복지관장"],
-    ["김연은","서울시 사회복지단체연대회의 회장 · 생명의전화종합사회복지관장"]
+    ['H01', '곽경인', '사회복지사협회장 · 성수종합사회복지관장', '1'],
+    ['H02', '김연은', '서울시 사회복지단체연대회의 회장 · 생명의전화종합사회복지관장', '2']
   ];
 
   var GUESTS = [
-    ["서울시·국회·구청", [
-      ["오세훈","서울특별시장"],
-      ["남인순","국회 부의장 (더불어민주당, 송파구병) ※협회 회원"],
-      ["김영호","국회의원 (더불어민주당, 서대문구을)"],
-      ["박운기","서대문구 구청장"]
-    ]],
-    ["서울시의회", [
-      ["김경우","보건복지위원회 위원장"],
-      ["이병도","운영위원회 위원장 · 보건복지위원회 위원"],
-      ["이승미","보건복지위원회 위원"],
-      ["함대건","도시안전건설위원회 부위원장"]
-    ]],
-    ["유관기관·전임회장", [
-      ["김병민","G3서울기획위원회 위원장"],
-      ["장재구","제11·12대 회장 (중앙사회복지관 관장)"],
-      ["심정원","제14·15대 회장 (성산종합사회복지관 관장)"],
-      ["조남범","서울시사회복지협의회 회장"],
-      ["박병삼","서울시사회복지행정연구회 회장"]
-    ]],
-    ["중앙협회", [
-      ["조석영","한국장애인복지관협회 회장"],
-      ["조범기","한국시니어클럽협회 회장"]
-    ]],
-    ["공동주최 단체 공동대표", [
-      ["엄종숙","서울시장애인복지시설협회 회장"],
-      ["최성남","서울시정신재활시설협회 회장"],
-      ["김남용","서울구립노인복지관협회 회장"]
-    ]],
-    ["서울시 사회복지 직능단체", [
-      ["곽금봉","서울시노인복지협회 회장"],
-      ["신재원","서울시노인복지관협회 회장"],
-      ["장현준","서울시재가노인복지협회 회장"],
-      ["이소영","서울시아동복지협회 회장"],
-      ["권수정","서울시한부모가족복지시설협회 회장"],
-      ["최선자","서울시장애인복지관협회 회장"],
-      ["홍금화","서울시장애인주간보호단기거주시설협회 회장"],
-      ["이민규","서울시장애인직업재활시설협회 회장"],
-      ["장경환","서울노숙인시설협회 회장"],
-      ["이선화","서울지역자활센터협회 회장"],
-      ["김은영","서울시지역아동센터협의회 회장"],
-      ["최유연","서울시여성폭력피해지원시설협의회 대표"],
-      ["한미영","서울시가족센터협회 회장"],
-      ["이혜경","서울시아동청소년그룹홈협의회 회장"],
-      ["이율기","서울시니어클럽협회 회장"],
-      ["문기덕","서울시아동보호전문기관협회 회장"],
-      ["최재옥","서울시정신요양시설협회 회장"],
-      ["신건철","서울시발달장애인평생교육센터협의회 회장"],
-      ["조한종","서울시50플러스센터협의회 회장"],
-      ["권현수","서울시우리동네키움센터협의회 회장"]
-    ]],
-    ["회장단", [
-      ["강현덕","영등포구가족센터 센터장"],
-      ["송주혜","서울시립뇌성마비복지관 관장"],
-      ["허곤","더홈 원장"],
-      ["안진경","동부외국인주민센터 센터장"],
-      ["조민혜","관악봉천지역자활센터 센터장"],
-      ["김아래미","서울여자대학교 교수"],
-      ["송향숙","서울시립성북노인종합복지관 관장"],
-      ["한양호","마포장애인종합복지관 팀장"]
-    ]],
-    ["함께하는 단체", [
-      ["이재홍","사회복지종사자 권익지원센터 센터장"],
-      ["박유빈","직장갑질119 온라인노조 사회복지지부 지부장 직무대행"]
-    ]]
+    ['G01', '서울시·국회·구청', '오세훈', '서울특별시장', '1'],
+    ['G02', '서울시·국회·구청', '남인순', '국회 부의장 (더불어민주당, 송파구병) ※협회 회원', '2'],
+    ['G03', '서울시·국회·구청', '김영호', '국회의원 (더불어민주당, 서대문구을)', '3'],
+    ['G04', '서울시·국회·구청', '박운기', '서대문구 구청장', '4'],
+    ['G05', '서울시의회', '김경우', '보건복지위원회 위원장', '5'],
+    ['G06', '서울시의회', '이병도', '운영위원회 위원장 · 보건복지위원회 위원', '6'],
+    ['G07', '서울시의회', '이승미', '보건복지위원회 위원', '7'],
+    ['G08', '서울시의회', '함대건', '도시안전건설위원회 부위원장', '8'],
+    ['G09', '유관기관·전임회장', '김병민', 'G3서울기획위원회 위원장', '9'],
+    ['G10', '유관기관·전임회장', '장재구', '제11·12대 회장 (중앙사회복지관 관장)', '10'],
+    ['G11', '유관기관·전임회장', '심정원', '제14·15대 회장 (성산종합사회복지관 관장)', '11'],
+    ['G12', '유관기관·전임회장', '조남범', '서울시사회복지협의회 회장', '12'],
+    ['G13', '유관기관·전임회장', '박병삼', '서울시사회복지행정연구회 회장', '13'],
+    ['G14', '중앙협회', '조석영', '한국장애인복지관협회 회장', '14'],
+    ['G15', '중앙협회', '조범기', '한국시니어클럽협회 회장', '15'],
+    ['G16', '공동주최 단체 공동대표', '엄종숙', '서울시장애인복지시설협회 회장', '16'],
+    ['G17', '공동주최 단체 공동대표', '최성남', '서울시정신재활시설협회 회장', '17'],
+    ['G18', '공동주최 단체 공동대표', '김남용', '서울구립노인복지관협회 회장', '18'],
+    ['G19', '서울시 사회복지 직능단체', '곽금봉', '서울시노인복지협회 회장', '19'],
+    ['G20', '서울시 사회복지 직능단체', '신재원', '서울시노인복지관협회 회장', '20'],
+    ['G21', '서울시 사회복지 직능단체', '장현준', '서울시재가노인복지협회 회장', '21'],
+    ['G22', '서울시 사회복지 직능단체', '이소영', '서울시아동복지협회 회장', '22'],
+    ['G23', '서울시 사회복지 직능단체', '권수정', '서울시한부모가족복지시설협회 회장', '23'],
+    ['G24', '서울시 사회복지 직능단체', '최선자', '서울시장애인복지관협회 회장', '24'],
+    ['G25', '서울시 사회복지 직능단체', '홍금화', '서울시장애인주간보호단기거주시설협회 회장', '25'],
+    ['G26', '서울시 사회복지 직능단체', '이민규', '서울시장애인직업재활시설협회 회장', '26'],
+    ['G27', '서울시 사회복지 직능단체', '장경환', '서울노숙인시설협회 회장', '27'],
+    ['G28', '서울시 사회복지 직능단체', '이선화', '서울지역자활센터협회 회장', '28'],
+    ['G29', '서울시 사회복지 직능단체', '김은영', '서울시지역아동센터협의회 회장', '29'],
+    ['G30', '서울시 사회복지 직능단체', '최유연', '서울시여성폭력피해지원시설협의회 대표', '30'],
+    ['G31', '서울시 사회복지 직능단체', '한미영', '서울시가족센터협회 회장', '31'],
+    ['G32', '서울시 사회복지 직능단체', '이혜경', '서울시아동청소년그룹홈협의회 회장', '32'],
+    ['G33', '서울시 사회복지 직능단체', '이율기', '서울시니어클럽협회 회장', '33'],
+    ['G34', '서울시 사회복지 직능단체', '문기덕', '서울시아동보호전문기관협회 회장', '34'],
+    ['G35', '서울시 사회복지 직능단체', '최재옥', '서울시정신요양시설협회 회장', '35'],
+    ['G36', '서울시 사회복지 직능단체', '신건철', '서울시발달장애인평생교육센터협의회 회장', '36'],
+    ['G37', '서울시 사회복지 직능단체', '조한종', '서울시50플러스센터협의회 회장', '37'],
+    ['G38', '서울시 사회복지 직능단체', '권현수', '서울시우리동네키움센터협의회 회장', '38'],
+    ['G39', '회장단', '강현덕', '영등포구가족센터 센터장', '39'],
+    ['G40', '회장단', '송주혜', '서울시립뇌성마비복지관 관장', '40'],
+    ['G41', '회장단', '허곤', '더홈 원장', '41'],
+    ['G42', '회장단', '안진경', '동부외국인주민센터 센터장', '42'],
+    ['G43', '회장단', '조민혜', '관악봉천지역자활센터 센터장', '43'],
+    ['G44', '회장단', '김아래미', '서울여자대학교 교수', '44'],
+    ['G45', '회장단', '송향숙', '서울시립성북노인종합복지관 관장', '45'],
+    ['G46', '회장단', '한양호', '마포장애인종합복지관 팀장', '46'],
+    ['G47', '함께하는 단체', '이재홍', '사회복지종사자 권익지원센터 센터장', '47'],
+    ['G48', '함께하는 단체', '박유빈', '직장갑질119 온라인노조 사회복지지부 지부장 직무대행', '48']
   ];
 
   /* 파일에 박힌 기본 데이터에도 시트와 같은 규칙으로 id를 매긴다.
@@ -673,6 +660,8 @@ section[data-view].on{display:block}
       if(d.slots && d.slots.length) SLOTS = d.slots.map(function(sl){ return [hhmm(sl[0]), hhmm(sl[1])]; });
       if(d.matrix && Object.keys(d.matrix).length) MATRIX = d.matrix;
       if(d.cue && d.cue.length) CUE = d.cue.map(function(c){ return [hhmm(c[0]), c[1], c[2]]; });
+      if(d.hosts && d.hosts.length) HOSTS = d.hosts;
+      if(d.guests && d.guests.length) GUESTS = d.guests;
       state.source = "sheet";
       rebuildRoster();
     }).catch(function(){ /* 오프라인이면 기본값 그대로 */ });
@@ -916,19 +905,70 @@ section[data-view].on{display:block}
   }
 
   function renderGuests(){
+    /* 주관 단체 */
     $("hosts").innerHTML = '<ul class="glist">' + HOSTS.map(function(h){
-      return '<li><b>' + esc(h[0]) + "</b><span>" + esc(h[1]) + "</span></li>";
-    }).join("") + "</ul>";
+      if(state.editing && state.edit === "host:" + h[0]) return hostForm(h);
+      return '<li data-a="hedit" data-id="' + esc(h[0]) + '"><b>' + esc(h[1]) + "</b><span>" + esc(h[2]) + "</span></li>";
+    }).join("") + "</ul>" +
+    '<div class="addwrap">' + (state.addTo === "host" ? hostForm(null) :
+      '<button class="ebtn" data-a="haddopen">+ 주관 단체 추가</button>') + "</div>";
 
-    var total = 0;
-    GUESTS.forEach(function(g){ total += g[1].length; });
-    $("guestCount").textContent = total + "명";
-    $("guests").innerHTML = GUESTS.map(function(g){
-      return '<div class="gcat">' + esc(g[0]) + "<span></span></div>" +
-        '<ul class="glist">' + g[1].map(function(p){
-          return '<li><b>' + esc(p[0]) + "</b><span>" + esc(p[1]) + "</span></li>";
+    /* 주요 내빈 — 구분 순서를 유지하며 묶기 */
+    $("guestCount").textContent = GUESTS.length + "명";
+    var order = [], byCat = {};
+    GUESTS.forEach(function(g){
+      if(!byCat[g[1]]){ byCat[g[1]] = []; order.push(g[1]); }
+      byCat[g[1]].push(g);
+    });
+    $("guests").innerHTML = order.map(function(cat){
+      return '<div class="gcat">' + esc(cat) + "<span></span></div>" +
+        '<ul class="glist">' + byCat[cat].map(function(g){
+          if(state.editing && state.edit === "guest:" + g[0]) return guestForm(g);
+          return '<li data-a="gedit" data-id="' + esc(g[0]) + '"><b>' + esc(g[2]) + "</b><span>" + esc(g[3]) + "</span></li>";
         }).join("") + "</ul>";
-    }).join("");
+    }).join("") +
+    '<div class="addwrap">' + (state.addTo === "guest" ? guestForm(null) :
+      '<button class="ebtn" data-a="gaddopen">+ 내빈 추가</button>') + "</div>";
+  }
+
+  function hostForm(h){
+    var isNew = !h;
+    return '<li class="gedit"><div class="eform" style="grid-column:1/-1">' +
+      '<label class="elab">성명</label><input class="efld" id="eh_n" value="' + esc(isNew ? "" : h[1]) + '" />' +
+      '<label class="elab">소속·직함</label><input class="efld" id="eh_r" value="' + esc(isNew ? "" : h[2]) + '" />' +
+      '<div class="ebtns">' +
+        '<button class="ebtn pri" data-a="' + (isNew ? "hadd" : "hsave") + '" data-id="' + esc(isNew ? "" : h[0]) + '">' + (isNew ? "추가" : "저장") + "</button>" +
+        '<button class="ebtn" data-a="cancel">취소</button>' +
+        (isNew ? "" : '<button class="ebtn del" data-a="hdel" data-id="' + esc(h[0]) + '" style="margin-left:auto">삭제</button>') +
+      "</div></div></li>";
+  }
+
+  function guestForm(g){
+    var isNew = !g;
+    var cats = [];
+    GUESTS.forEach(function(x){ if(cats.indexOf(x[1]) === -1) cats.push(x[1]); });
+    var cur = isNew ? (cats[0] || "") : g[1];
+    return '<li class="gedit"><div class="eform" style="grid-column:1/-1">' +
+      '<label class="elab">구분</label><select class="efld" id="eg_c">' +
+        cats.map(function(c){ return "<option" + (c === cur ? " selected" : "") + ">" + esc(c) + "</option>"; }).join("") +
+        '<option value="__new">+ 새 구분 직접 입력</option>' +
+      "</select>" +
+      '<input class="efld" id="eg_cnew" placeholder="새 구분 이름" hidden />' +
+      '<label class="elab">성명</label><input class="efld" id="eg_n" value="' + esc(isNew ? "" : g[2]) + '" />' +
+      '<label class="elab">소속·직함</label><input class="efld" id="eg_r" value="' + esc(isNew ? "" : g[3]) + '" />' +
+      '<div class="ebtns">' +
+        '<button class="ebtn pri" data-a="' + (isNew ? "gadd" : "gsave") + '" data-id="' + esc(isNew ? "" : g[0]) + '">' + (isNew ? "추가" : "저장") + "</button>" +
+        '<button class="ebtn" data-a="cancel">취소</button>' +
+        (isNew ? "" : '<button class="ebtn" data-a="gup" data-id="' + esc(g[0]) + '">↑</button>' +
+                      '<button class="ebtn" data-a="gdown" data-id="' + esc(g[0]) + '">↓</button>' +
+                      '<button class="ebtn del" data-a="gdel" data-id="' + esc(g[0]) + '" style="margin-left:auto">삭제</button>') +
+      "</div></div></li>";
+  }
+
+  function catValue(){
+    var sel = $("eg_c");
+    if(sel.value === "__new") return ($("eg_cnew").value || "").trim();
+    return sel.value;
   }
 
   function setView(v){
@@ -1060,6 +1100,49 @@ section[data-view].on{display:block}
         .catch(function(err){ toast(err.message, "bad"); });
       return;
     }
+    if(a === "hedit"){ state.edit = "host:" + el.dataset.id; state.addTo = null; renderGuests(); return; }
+    if(a === "gedit"){ state.edit = "guest:" + el.dataset.id; state.addTo = null; renderGuests(); return; }
+    if(a === "haddopen"){ state.addTo = "host"; state.edit = null; renderGuests(); return; }
+    if(a === "gaddopen"){ state.addTo = "guest"; state.edit = null; renderGuests(); return; }
+
+    if(a === "hsave" || a === "hadd"){
+      if(!$("eh_n").value.trim()){ toast("성명을 입력해 주세요", "bad"); return; }
+      admin({action: a === "hadd" ? "guideHostAdd" : "guideHostSet", id:el.dataset.id || "",
+             name:$("eh_n").value.trim(), role:$("eh_r").value.trim(), actor:state.me || ""})
+        .then(function(){ return afterSave(a === "hadd" ? "추가했습니다" : "저장했습니다"); })
+        .catch(function(err){ toast(err.message, "bad"); });
+      return;
+    }
+    if(a === "hdel"){
+      if(!window.confirm("이 주관 단체를 삭제합니다.")) return;
+      admin({action:"guideHostDel", id:el.dataset.id})
+        .then(function(){ return afterSave("삭제했습니다"); })
+        .catch(function(err){ toast(err.message, "bad"); });
+      return;
+    }
+    if(a === "gsave" || a === "gadd"){
+      if(!$("eg_n").value.trim()){ toast("성명을 입력해 주세요", "bad"); return; }
+      var cat = catValue();
+      if(!cat){ toast("구분을 정해 주세요", "bad"); return; }
+      admin({action: a === "gadd" ? "guideGuestAdd" : "guideGuestSet", id:el.dataset.id || "",
+             cat:cat, name:$("eg_n").value.trim(), role:$("eg_r").value.trim(), actor:state.me || ""})
+        .then(function(){ return afterSave(a === "gadd" ? "추가했습니다" : "저장했습니다"); })
+        .catch(function(err){ toast(err.message, "bad"); });
+      return;
+    }
+    if(a === "gdel"){
+      if(!window.confirm("이 내빈을 명단에서 삭제합니다.")) return;
+      admin({action:"guideGuestDel", id:el.dataset.id})
+        .then(function(){ return afterSave("삭제했습니다"); })
+        .catch(function(err){ toast(err.message, "bad"); });
+      return;
+    }
+    if(a === "gup" || a === "gdown"){
+      admin({action:"guideGuestMove", id:el.dataset.id, dir:a === "gup" ? "up" : "down"})
+        .then(function(){ return afterSave("순서 변경"); })
+        .catch(function(err){ toast(err.message, "bad"); });
+      return;
+    }
     if(a === "csave"){
       admin({action:"guideCueSet", index:el.dataset.i,
              time:hhmm($("ec_t").value), title:$("ec_n").value.trim(), who:$("ec_w").value.trim(),
@@ -1070,8 +1153,14 @@ section[data-view].on{display:block}
     }
   }
 
-  ["timeline", "personBody", "cue"].forEach(function(id){
+  ["timeline", "personBody", "cue", "hosts", "guests"].forEach(function(id){
     $(id).addEventListener("click", onEditClick);
+  });
+  $("guests").addEventListener("change", function(e){
+    if(e.target.id !== "eg_c") return;
+    var box = $("eg_cnew");
+    box.hidden = e.target.value !== "__new";
+    if(!box.hidden) box.focus();
   });
 
   /* ───────── 시작 ───────── */

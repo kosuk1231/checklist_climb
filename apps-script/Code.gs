@@ -517,6 +517,8 @@ var G_TASK  = '당일업무';       // id | blockId | 장소 | 업무 | 총괄 |
 var G_SLOT  = '당일시간구간';   // 시작 | 종료  (개인별 매트릭스 열 기준)
 var G_MTX   = '개인별업무';     // 이름 | 구간1..5
 var G_CUE   = '개회식큐시트';   // 시간 | 순서 | 담당
+var G_HOST  = '주관단체';       // id | 성명 | 소속 | 순서
+var G_GUEST = '주요내빈';       // id | 구분 | 성명 | 소속 | 순서
 
 var G_HEADERS = {};
 G_HEADERS[G_BLOCK] = ['blockId', '시작', '종료', '블록명', '순서'];
@@ -524,6 +526,8 @@ G_HEADERS[G_TASK]  = ['id', 'blockId', '장소', '업무', '총괄', '지원', '
 G_HEADERS[G_SLOT]  = ['시작', '종료'];
 G_HEADERS[G_MTX]   = ['이름', '구간1', '구간2', '구간3', '구간4', '구간5'];
 G_HEADERS[G_CUE]   = ['시간', '순서', '담당'];
+G_HEADERS[G_HOST]  = ['id', '성명', '소속', '순서'];
+G_HEADERS[G_GUEST] = ['id', '구분', '성명', '소속', '순서'];
 
 /* ───────── 라우팅 (Code.gs 의 doGet 에서 위임) ───────── */
 
@@ -537,6 +541,13 @@ function guideRoute(p) {
     case 'guideBlockSet':guard(p); return guideBlockSet(p);
     case 'guideMtxSet':  guard(p); return guideMtxSet(p);
     case 'guideCueSet':  guard(p); return guideCueSet(p);
+    case 'guideHostSet':  guard(p); return guidePersonSet(G_HOST, p);
+    case 'guideHostAdd':  guard(p); return guidePersonAdd(G_HOST, p);
+    case 'guideHostDel':  guard(p); return guideRowDel(G_HOST, 'id', p.id);
+    case 'guideGuestSet': guard(p); return guidePersonSet(G_GUEST, p);
+    case 'guideGuestAdd': guard(p); return guidePersonAdd(G_GUEST, p);
+    case 'guideGuestDel': guard(p); return guideRowDel(G_GUEST, 'id', p.id);
+    case 'guideGuestMove':guard(p); return guideMove(G_GUEST, p.id, p.dir);
     case 'guideSeed':    guard(p); return guideSeed(p.force === '1');
     default: return null;
   }
@@ -660,7 +671,14 @@ function guideRead() {
   gRows(G_MTX).forEach(function (r) { mtx[r[0]] = [r[1], r[2], r[3], r[4], r[5]]; });
   var cue = gRows(G_CUE).map(function (r) { return [hhmm(r[0]), r[1], r[2]]; });
 
-  return { tl: tl, slots: slots, matrix: mtx, cue: cue };
+  var hosts = gRows(G_HOST)
+    .sort(function (a, b) { return (parseInt(a[3], 10) || 0) - (parseInt(b[3], 10) || 0); })
+    .map(function (r) { return [r[0], r[1], r[2], r[3]]; });
+  var guests = gRows(G_GUEST)
+    .sort(function (a, b) { return (parseInt(a[4], 10) || 0) - (parseInt(b[4], 10) || 0); })
+    .map(function (r) { return [r[0], r[1], r[2], r[3], r[4]]; });
+
+  return { tl: tl, slots: slots, matrix: mtx, cue: cue, hosts: hosts, guests: guests };
 }
 
 /** 시트가 "07:00" 을 시각 값(Date)으로 저장한 경우에도 HH:mm 문자열로 되돌린다 */
@@ -730,6 +748,48 @@ function guideBlockSet(p) {
   return { id: p.id, changed: changed };
 }
 
+/** 주관단체·주요내빈 공용 수정 */
+function guidePersonSet(name, p) {
+  var row = gFindRow(name, 'id', p.id);
+  if (row < 0) throw new Error('명단에서 찾을 수 없습니다: ' + p.id);
+  var patch = {};
+  if (name === G_GUEST && p.cat !== undefined) patch['구분'] = p.cat;
+  if (p.name !== undefined) patch['성명'] = p.name;
+  if (p.role !== undefined) patch['소속'] = p.role;
+  var changed = gSetCells(name, row, patch);
+  audit('내빈 수정', p.id, changed.join(','), p.actor || '');
+  return { id: p.id, changed: changed };
+}
+
+/** 주관단체·주요내빈 공용 추가 (같은 구분 맨 아래에 끼워 넣음) */
+function guidePersonAdd(name, p) {
+  if (!String(p.name || '').trim()) throw new Error('성명을 입력해 주세요');
+  var sh = gSheet(name);
+  var rows = gRows(name);
+  var pre = (name === G_HOST) ? 'H' : 'G';
+  var max = 0;
+  rows.forEach(function (r) {
+    var m = String(r[0]).match(/^[A-Z](\d+)$/);
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  });
+  var id = pre + ('0' + (max + 1)).slice(-2);
+
+  var insertAt = sh.getLastRow() + 1, order = rows.length + 1;
+  if (name === G_GUEST) {
+    for (var i = rows.length - 1; i >= 0; i--) {
+      if (rows[i][1] === String(p.cat)) { insertAt = i + 3; order = (parseInt(rows[i][4], 10) || 0) + 1; break; }
+    }
+  }
+  if (insertAt <= sh.getLastRow()) sh.insertRowBefore(insertAt);
+
+  var vals = (name === G_HOST)
+    ? [id, String(p.name), String(p.role || ''), order]
+    : [id, String(p.cat || ''), String(p.name), String(p.role || ''), order];
+  sh.getRange(insertAt, 1, 1, G_HEADERS[name].length).setValues([vals]);
+  audit('내빈 추가', id, String(p.name), p.actor || '');
+  return { id: id };
+}
+
 function guideMtxSet(p) {
   var name = String(p.name || '');
   if (!name) throw new Error('이름이 없습니다');
@@ -763,7 +823,8 @@ function guideCueSet(p) {
 function guideSeed(force) {
   var sets = [
     [G_BLOCK, GUIDE_BLOCKS], [G_TASK, GUIDE_TASKS],
-    [G_SLOT, GUIDE_SLOTS], [G_MTX, GUIDE_MATRIX], [G_CUE, GUIDE_CUE]
+    [G_SLOT, GUIDE_SLOTS], [G_MTX, GUIDE_MATRIX], [G_CUE, GUIDE_CUE],
+    [G_HOST, GUIDE_HOSTS], [G_GUEST, GUIDE_GUESTS]
   ];
   var out = {};
   sets.forEach(function (pair) {
@@ -909,4 +970,60 @@ var GUIDE_CUE = [
   ['09:30', '경품추첨', '오세훈 시장님 1등(1명)·4등(약 100명) / 조은정 부위원장, 이경원 대표 진행 · 6분'],
   ['09:36', '기념촬영', '단체사진 · 2분'],
   ['09:38', '안내 및 등반', '주요 안내 및 안산 등반 · 2분']
+];
+
+var GUIDE_HOSTS = [
+  ['H01', '곽경인', '사회복지사협회장 · 성수종합사회복지관장', '1'],
+  ['H02', '김연은', '서울시 사회복지단체연대회의 회장 · 생명의전화종합사회복지관장', '2']
+];
+
+var GUIDE_GUESTS = [
+  ['G01', '서울시·국회·구청', '오세훈', '서울특별시장', '1'],
+  ['G02', '서울시·국회·구청', '남인순', '국회 부의장 (더불어민주당, 송파구병) ※협회 회원', '2'],
+  ['G03', '서울시·국회·구청', '김영호', '국회의원 (더불어민주당, 서대문구을)', '3'],
+  ['G04', '서울시·국회·구청', '박운기', '서대문구 구청장', '4'],
+  ['G05', '서울시의회', '김경우', '보건복지위원회 위원장', '5'],
+  ['G06', '서울시의회', '이병도', '운영위원회 위원장 · 보건복지위원회 위원', '6'],
+  ['G07', '서울시의회', '이승미', '보건복지위원회 위원', '7'],
+  ['G08', '서울시의회', '함대건', '도시안전건설위원회 부위원장', '8'],
+  ['G09', '유관기관·전임회장', '김병민', 'G3서울기획위원회 위원장', '9'],
+  ['G10', '유관기관·전임회장', '장재구', '제11·12대 회장 (중앙사회복지관 관장)', '10'],
+  ['G11', '유관기관·전임회장', '심정원', '제14·15대 회장 (성산종합사회복지관 관장)', '11'],
+  ['G12', '유관기관·전임회장', '조남범', '서울시사회복지협의회 회장', '12'],
+  ['G13', '유관기관·전임회장', '박병삼', '서울시사회복지행정연구회 회장', '13'],
+  ['G14', '중앙협회', '조석영', '한국장애인복지관협회 회장', '14'],
+  ['G15', '중앙협회', '조범기', '한국시니어클럽협회 회장', '15'],
+  ['G16', '공동주최 단체 공동대표', '엄종숙', '서울시장애인복지시설협회 회장', '16'],
+  ['G17', '공동주최 단체 공동대표', '최성남', '서울시정신재활시설협회 회장', '17'],
+  ['G18', '공동주최 단체 공동대표', '김남용', '서울구립노인복지관협회 회장', '18'],
+  ['G19', '서울시 사회복지 직능단체', '곽금봉', '서울시노인복지협회 회장', '19'],
+  ['G20', '서울시 사회복지 직능단체', '신재원', '서울시노인복지관협회 회장', '20'],
+  ['G21', '서울시 사회복지 직능단체', '장현준', '서울시재가노인복지협회 회장', '21'],
+  ['G22', '서울시 사회복지 직능단체', '이소영', '서울시아동복지협회 회장', '22'],
+  ['G23', '서울시 사회복지 직능단체', '권수정', '서울시한부모가족복지시설협회 회장', '23'],
+  ['G24', '서울시 사회복지 직능단체', '최선자', '서울시장애인복지관협회 회장', '24'],
+  ['G25', '서울시 사회복지 직능단체', '홍금화', '서울시장애인주간보호단기거주시설협회 회장', '25'],
+  ['G26', '서울시 사회복지 직능단체', '이민규', '서울시장애인직업재활시설협회 회장', '26'],
+  ['G27', '서울시 사회복지 직능단체', '장경환', '서울노숙인시설협회 회장', '27'],
+  ['G28', '서울시 사회복지 직능단체', '이선화', '서울지역자활센터협회 회장', '28'],
+  ['G29', '서울시 사회복지 직능단체', '김은영', '서울시지역아동센터협의회 회장', '29'],
+  ['G30', '서울시 사회복지 직능단체', '최유연', '서울시여성폭력피해지원시설협의회 대표', '30'],
+  ['G31', '서울시 사회복지 직능단체', '한미영', '서울시가족센터협회 회장', '31'],
+  ['G32', '서울시 사회복지 직능단체', '이혜경', '서울시아동청소년그룹홈협의회 회장', '32'],
+  ['G33', '서울시 사회복지 직능단체', '이율기', '서울시니어클럽협회 회장', '33'],
+  ['G34', '서울시 사회복지 직능단체', '문기덕', '서울시아동보호전문기관협회 회장', '34'],
+  ['G35', '서울시 사회복지 직능단체', '최재옥', '서울시정신요양시설협회 회장', '35'],
+  ['G36', '서울시 사회복지 직능단체', '신건철', '서울시발달장애인평생교육센터협의회 회장', '36'],
+  ['G37', '서울시 사회복지 직능단체', '조한종', '서울시50플러스센터협의회 회장', '37'],
+  ['G38', '서울시 사회복지 직능단체', '권현수', '서울시우리동네키움센터협의회 회장', '38'],
+  ['G39', '회장단', '강현덕', '영등포구가족센터 센터장', '39'],
+  ['G40', '회장단', '송주혜', '서울시립뇌성마비복지관 관장', '40'],
+  ['G41', '회장단', '허곤', '더홈 원장', '41'],
+  ['G42', '회장단', '안진경', '동부외국인주민센터 센터장', '42'],
+  ['G43', '회장단', '조민혜', '관악봉천지역자활센터 센터장', '43'],
+  ['G44', '회장단', '김아래미', '서울여자대학교 교수', '44'],
+  ['G45', '회장단', '송향숙', '서울시립성북노인종합복지관 관장', '45'],
+  ['G46', '회장단', '한양호', '마포장애인종합복지관 팀장', '46'],
+  ['G47', '함께하는 단체', '이재홍', '사회복지종사자 권익지원센터 센터장', '47'],
+  ['G48', '함께하는 단체', '박유빈', '직장갑질119 온라인노조 사회복지지부 지부장 직무대행', '48']
 ];
