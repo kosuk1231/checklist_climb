@@ -638,6 +638,10 @@ function guideMove(name, id, dir) {
 /* ───────── 읽기 ───────── */
 
 function guideRead() {
+  /* 비어 있는 안내 시트가 하나라도 있으면 기본값으로 자동 채움.
+     이미 내용이 있는 시트는 건드리지 않는다(guideSeed(false) 동작). */
+  guideEnsure();
+
   var blocks = gRows(G_BLOCK), tasks = gRows(G_TASK);
   if (!blocks.length) return { empty: true };
 
@@ -694,6 +698,20 @@ function hhmm(v) {
   return t;
 }
 
+/** 안내 시트 중 비어 있는 것이 있으면 기본값으로 채운다 */
+function guideEnsure() {
+  var names = [G_BLOCK, G_TASK, G_SLOT, G_MTX, G_CUE, G_HOST, G_GUEST];
+  var needs = false;
+  for (var i = 0; i < names.length; i++) {
+    if (gSheet(names[i]).getLastRow() < 2) { needs = true; break; }
+  }
+  if (!needs) return false;
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) return false;
+  try { guideSeed(false); } finally { lock.releaseLock(); }
+  return true;
+}
+
 function splitNames(v) {
   return String(v || '').split(/\s*,\s*/).filter(function (s) { return s.length; });
 }
@@ -702,7 +720,7 @@ function splitNames(v) {
 
 function guideTaskSet(p) {
   var row = gFindRow(G_TASK, 'id', p.id);
-  if (row < 0) throw new Error('업무를 찾을 수 없습니다: ' + p.id);
+  if (row < 0) throw new Error('시트에 없는 업무입니다(' + p.id + '). 화면을 새로고침한 뒤 다시 시도해 주세요.');
   var patch = {};
   ['장소', '업무', '총괄', '지원', '유의'].forEach(function (k, i) {
     var src = ['p', 'task', 'lead', 'sub', 'note'][i];
@@ -751,7 +769,7 @@ function guideBlockSet(p) {
 /** 주관단체·주요내빈 공용 수정 */
 function guidePersonSet(name, p) {
   var row = gFindRow(name, 'id', p.id);
-  if (row < 0) throw new Error('명단에서 찾을 수 없습니다: ' + p.id);
+  if (row < 0) throw new Error('명단에 없는 항목입니다(' + p.id + '). 화면을 새로고침한 뒤 다시 시도해 주세요.');
   var patch = {};
   if (name === G_GUEST && p.cat !== undefined) patch['구분'] = p.cat;
   if (p.name !== undefined) patch['성명'] = p.name;
