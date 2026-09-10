@@ -564,7 +564,11 @@ function gRows(name) {
   var w = G_HEADERS[name].length;
   return sh.getRange(2, 1, last - 1, w).getValues()
     .filter(function (r) { return String(r[0]).length > 0; })
-    .map(function (r) { return r.map(function (c) { return String(c == null ? '' : c); }); });
+    .map(function (r) {
+      return r.map(function (c) {
+        return (c instanceof Date) ? hhmm(c) : String(c == null ? '' : c);
+      });
+    });
 }
 
 function gFindRow(name, keyCol, key) {
@@ -584,7 +588,9 @@ function gSetCells(name, row, patch) {
   for (var k in patch) {
     var c = h.indexOf(k);
     if (c > -1 && patch[k] !== undefined) {
-      sh.getRange(row, c + 1).setValue(String(patch[k]));
+      var cell = sh.getRange(row, c + 1);
+      if (k === '시작' || k === '종료' || k === '시간') cell.setNumberFormat('@');
+      cell.setValue(String(patch[k]));
       changed.push(k);
     }
   }
@@ -636,9 +642,10 @@ function guideRead() {
     var list = (byBlock[b[0]] || []).sort(function (x, y) {
       return (parseInt(x[7], 10) || 0) - (parseInt(y[7], 10) || 0);
     });
+    var bs = hhmm(b[1]), be = hhmm(b[2]);
     return {
-      id: b[0], s: b[1], e: b[2], label: b[3],
-      t: b[1] + '~' + b[2],
+      id: b[0], s: bs, e: be, label: b[3],
+      t: bs + '~' + be,
       items: list.map(function (t) {
         return {
           id: t[0], p: t[2], task: t[3],
@@ -648,12 +655,25 @@ function guideRead() {
     };
   });
 
-  var slots = gRows(G_SLOT).map(function (r) { return [r[0], r[1]]; });
+  var slots = gRows(G_SLOT).map(function (r) { return [hhmm(r[0]), hhmm(r[1])]; });
   var mtx = {};
   gRows(G_MTX).forEach(function (r) { mtx[r[0]] = [r[1], r[2], r[3], r[4], r[5]]; });
-  var cue = gRows(G_CUE).map(function (r) { return [r[0], r[1], r[2]]; });
+  var cue = gRows(G_CUE).map(function (r) { return [hhmm(r[0]), r[1], r[2]]; });
 
   return { tl: tl, slots: slots, matrix: mtx, cue: cue };
+}
+
+/** 시트가 "07:00" 을 시각 값(Date)으로 저장한 경우에도 HH:mm 문자열로 되돌린다 */
+function hhmm(v) {
+  if (v instanceof Date) {
+    return ('0' + v.getHours()).slice(-2) + ':' + ('0' + v.getMinutes()).slice(-2);
+  }
+  var t = String(v == null ? '' : v).trim();
+  if (!t) return '';
+  /* "Sat Dec 30 1899 07:00:00 GMT+0827" 같은 문자열 방어 */
+  var m = t.match(/(\d{1,2}):(\d{2})/);
+  if (m) return ('0' + m[1]).slice(-2) + ':' + m[2];
+  return t;
 }
 
 function splitNames(v) {
@@ -731,7 +751,7 @@ function guideCueSet(p) {
   var sh = gSheet(G_CUE);
   var row = i + 2;
   if (row < 2 || row > sh.getLastRow()) throw new Error('큐시트 행을 찾을 수 없습니다');
-  if (p.time  !== undefined) sh.getRange(row, 1).setValue(String(p.time));
+  if (p.time  !== undefined) { sh.getRange(row, 1).setNumberFormat('@').setValue(String(p.time)); }
   if (p.title !== undefined) sh.getRange(row, 2).setValue(String(p.title));
   if (p.who   !== undefined) sh.getRange(row, 3).setValue(String(p.who));
   audit('안내 큐시트 수정', 'CUE' + i, '', p.actor || '');
@@ -753,6 +773,10 @@ function guideSeed(force) {
     if (sh.getLastRow() > 1) {
       sh.getRange(2, 1, sh.getLastRow() - 1, G_HEADERS[name].length).clearContent();
     }
+    /* 07:00 같은 값이 시각으로 자동 변환되지 않도록 해당 열을 텍스트 서식으로 고정 */
+    if (name === G_BLOCK) sh.getRange(2, 2, Math.max(data.length, 50), 2).setNumberFormat('@');
+    if (name === G_SLOT)  sh.getRange(2, 1, Math.max(data.length, 50), 2).setNumberFormat('@');
+    if (name === G_CUE)   sh.getRange(2, 1, Math.max(data.length, 50), 1).setNumberFormat('@');
     sh.getRange(2, 1, data.length, G_HEADERS[name].length).setValues(data);
     out[name] = data.length;
   });

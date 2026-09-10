@@ -599,7 +599,20 @@ section[data-view].on{display:block}
   var EVENT = new Date(2026, 8, 12);
 
   function esc(s){ return String(s == null ? "" : s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
-  function mins(hm){ var a = hm.split(":"); return (+a[0]) * 60 + (+a[1]); }
+  /* 시트가 시각을 Date 문자열("Sat Dec 30 1899 07:00:00 ...")로 돌려줘도 HH:mm 으로 되돌린다 */
+  function hhmm(v){
+    if(v == null) return "";
+    if(v instanceof Date){
+      return ("0" + v.getHours()).slice(-2) + ":" + ("0" + v.getMinutes()).slice(-2);
+    }
+    var t = String(v).trim();
+    if(/^\d{1,2}:\d{2}$/.test(t)) return ("0" + t).slice(-5);
+    var d = t.match(/(\d{1,2}):(\d{2})(?::\d{2})?/);
+    if(d) return ("0" + d[1]).slice(-2) + ":" + d[2];
+    return t;
+  }
+
+  function mins(hm){ var a = hhmm(hm).split(":"); return (+a[0]) * 60 + (+a[1]); }
   function isMe(name){
     if(!state.me) return false;
     if(name === state.me) return true;
@@ -653,10 +666,13 @@ section[data-view].on{display:block}
     if(!API) return Promise.resolve();
     return call({action:"guide"}).then(function(d){
       if(!d || d.empty || !d.tl || !d.tl.length) return;
-      TL = d.tl;
-      if(d.slots && d.slots.length) SLOTS = d.slots;
+      TL = d.tl.map(function(b){
+        b.s = hhmm(b.s); b.e = hhmm(b.e); b.t = b.s + "~" + b.e;
+        return b;
+      });
+      if(d.slots && d.slots.length) SLOTS = d.slots.map(function(sl){ return [hhmm(sl[0]), hhmm(sl[1])]; });
       if(d.matrix && Object.keys(d.matrix).length) MATRIX = d.matrix;
-      if(d.cue && d.cue.length) CUE = d.cue;
+      if(d.cue && d.cue.length) CUE = d.cue.map(function(c){ return [hhmm(c[0]), c[1], c[2]]; });
       state.source = "sheet";
       rebuildRoster();
     }).catch(function(){ /* 오프라인이면 기본값 그대로 */ });
@@ -725,11 +741,11 @@ section[data-view].on{display:block}
     if(ni && ni.cur){
       strip.className = "now-strip show";
       var mine = state.me ? ni.cur.items.filter(involves).length : 0;
-      strip.innerHTML = "지금 <b>" + esc(ni.cur.t) + "</b> " + esc(ni.cur.label) +
+      strip.innerHTML = "지금 <b>" + esc(hhmm(ni.cur.s) + "~" + hhmm(ni.cur.e)) + "</b> " + esc(ni.cur.label) +
         (state.me ? " · 내 업무 " + mine + "건" : "");
     }else if(ni && ni.next){
       strip.className = "now-strip show";
-      strip.innerHTML = "다음 <b>" + esc(ni.next.s) + "</b> " + esc(ni.next.label) + " 시작";
+      strip.innerHTML = "다음 <b>" + esc(hhmm(ni.next.s)) + "</b> " + esc(ni.next.label) + " 시작";
     }else{
       strip.className = "now-strip";
     }
@@ -765,13 +781,13 @@ section[data-view].on{display:block}
       var isNow = ni && ni.cur === b;
       var head = state.editing && state.edit === "block:" + b.id
         ? '<div class="eform">' +
-            '<label class="elab">시작</label><input class="efld" id="eb_s" value="' + esc(b.s) + '" />' +
-            '<label class="elab">종료</label><input class="efld" id="eb_e" value="' + esc(b.e) + '" />' +
+            '<label class="elab">시작</label><input class="efld" id="eb_s" value="' + esc(hhmm(b.s)) + '" placeholder="07:00" />' +
+            '<label class="elab">종료</label><input class="efld" id="eb_e" value="' + esc(hhmm(b.e)) + '" placeholder="08:00" />' +
             '<label class="elab">구간 이름</label><input class="efld" id="eb_l" value="' + esc(b.label) + '" />' +
             '<div class="ebtns"><button class="ebtn pri" data-a="bsave" data-id="' + esc(b.id) + '">저장</button>' +
             '<button class="ebtn" data-a="cancel">취소</button></div>' +
           "</div>"
-        : '<div class="h" data-a="bedit" data-id="' + esc(b.id || "") + '">' + esc(b.s) + "</div><small>~" + esc(b.e) + "</small><small>" + esc(b.label) + "</small>" +
+        : '<div class="h" data-a="bedit" data-id="' + esc(b.id || "") + '">' + esc(hhmm(b.s)) + "</div><small>~" + esc(hhmm(b.e)) + "</small><small>" + esc(b.label) + "</small>" +
           (isNow ? '<span class="nowtag">지금</span>' : "");
 
       return '<div class="tblock' + (isNow ? " now" : "") + '">' +
@@ -853,13 +869,13 @@ section[data-view].on{display:block}
       var isNow = ni && ni.m >= mins(sl[0]) && ni.m < mins(sl[1]);
       var v = m[i] || "-";
       if(state.editing && state.edit === "mtx:" + p + ":" + i){
-        return '<div class="slot"><div class="st">' + sl[0] + "<small>~" + sl[1] + '</small></div><div class="eform" style="margin:0">' +
+        return '<div class="slot"><div class="st">' + esc(hhmm(sl[0])) + "<small>~" + esc(hhmm(sl[1])) + '</small></div><div class="eform" style="margin:0">' +
           '<input class="efld" id="em_v" value="' + esc(v === "-" ? "" : v) + '" placeholder="여러 건은 / 로 구분" />' +
           '<div class="ebtns"><button class="ebtn pri" data-a="msave" data-p="' + esc(p) + '" data-slot="' + i + '">저장</button>' +
           '<button class="ebtn" data-a="cancel">취소</button></div></div></div>';
       }
       var parts = v === "-" || !v ? [] : v.split(" / ");
-      return '<div class="slot' + (isNow ? " now" : "") + '"><div class="st">' + sl[0] + "<small>~" + sl[1] + "</small></div>" +
+      return '<div class="slot' + (isNow ? " now" : "") + '"><div class="st">' + esc(hhmm(sl[0])) + "<small>~" + esc(hhmm(sl[1])) + "</small></div>" +
         '<div class="sv' + (parts.length ? "" : " none") + '" data-a="medit" data-p="' + esc(p) + '" data-slot="' + i + '">' +
         (parts.length ? parts.map(function(x){ return "<i>" + esc(x) + "</i>"; }).join("") : "배정 없음 · 대기·지원") + "</div></div>";
     }).join("") + "</div>";
@@ -874,7 +890,7 @@ section[data-view].on{display:block}
         '<ul class="items">' + rows.map(function(r){
           var lead = (r.it.lead || []).indexOf(p) > -1 || (r.it.lead || []).some(function(n){ return ALIAS[n] && ALIAS[n].indexOf(p) > -1; });
           return "<li>" +
-            '<span class="place">' + esc(r.b.t) + " · " + esc(r.it.p) + "</span>" +
+            '<span class="place">' + esc(hhmm(r.b.s) + "~" + hhmm(r.b.e)) + " · " + esc(r.it.p) + "</span>" +
             '<div class="task">' + esc(r.it.task) + (lead ? "" : ' <span style="font-size:12px;font-weight:600;color:var(--muted)">지원</span>') + "</div>" +
             '<div class="who">' + (r.it.lead || []).map(function(n){ return "<b>" + esc(n) + "</b>"; }).join(", ") +
               (r.it.sub && r.it.sub.length ? " · " + r.it.sub.map(esc).join(", ") : "") + "</div>" +
@@ -889,13 +905,13 @@ section[data-view].on{display:block}
     $("cue").innerHTML = CUE.map(function(c, i){
       if(state.editing && state.edit === "cue:" + i){
         return '<li><div class="eform" style="grid-column:1/-1">' +
-          '<label class="elab">시간</label><input class="efld" id="ec_t" value="' + esc(c[0]) + '" />' +
+          '<label class="elab">시간</label><input class="efld" id="ec_t" value="' + esc(hhmm(c[0])) + '" placeholder="09:00" />' +
           '<label class="elab">순서</label><input class="efld" id="ec_n" value="' + esc(c[1]) + '" />' +
           '<label class="elab">담당·비고</label><input class="efld" id="ec_w" value="' + esc(c[2]) + '" />' +
           '<div class="ebtns"><button class="ebtn pri" data-a="csave" data-i="' + i + '">저장</button>' +
           '<button class="ebtn" data-a="cancel">취소</button></div></div></li>';
       }
-      return '<li data-a="cedit" data-i="' + i + '"><div class="ct">' + esc(c[0]) + '</div><div><div class="cn">' + esc(c[1]) + '</div><div class="cw">' + esc(c[2]) + "</div></div></li>";
+      return '<li data-a="cedit" data-i="' + i + '"><div class="ct">' + esc(hhmm(c[0])) + '</div><div><div class="cn">' + esc(c[1]) + '</div><div class="cw">' + esc(c[2]) + "</div></div></li>";
     }).join("");
   }
 
@@ -999,7 +1015,7 @@ section[data-view].on{display:block}
 
     if(a === "bsave"){
       admin({action:"guideBlockSet", id:el.dataset.id,
-             s:$("eb_s").value.trim(), e:$("eb_e").value.trim(), label:$("eb_l").value.trim()})
+             s:hhmm($("eb_s").value), e:hhmm($("eb_e").value), label:$("eb_l").value.trim()})
         .then(function(){ return afterSave("시간대 저장"); })
         .catch(function(err){ toast(err.message, "bad"); });
       return;
@@ -1046,7 +1062,7 @@ section[data-view].on{display:block}
     }
     if(a === "csave"){
       admin({action:"guideCueSet", index:el.dataset.i,
-             time:$("ec_t").value.trim(), title:$("ec_n").value.trim(), who:$("ec_w").value.trim(),
+             time:hhmm($("ec_t").value), title:$("ec_n").value.trim(), who:$("ec_w").value.trim(),
              actor:state.me || ""})
         .then(function(){ return afterSave("저장했습니다"); })
         .catch(function(err){ toast(err.message, "bad"); });
