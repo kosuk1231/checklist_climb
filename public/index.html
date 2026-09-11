@@ -215,12 +215,12 @@ li.busy .box i{border-color:var(--stage);animation:pulse .8s ease-in-out infinit
 
   /* ---------- API (JSONP: CORS 회피) ---------- */
   var jsonpSeq = 0;
-  function call(params){
-    if(DEMO) return Promise.resolve({ok:true, data:null, demo:true});
+
+  function jsonp(params, timeoutMs){
     return new Promise(function(resolve, reject){
       var name = "__cb" + (++jsonpSeq) + "_" + Date.now();
       var s = document.createElement("script");
-      var timer = setTimeout(function(){ cleanup(); reject(new Error("응답 시간 초과")); }, 15000);
+      var timer = setTimeout(function(){ cleanup(); reject(new Error("TIMEOUT")); }, timeoutMs || 30000);
       function cleanup(){
         clearTimeout(timer);
         delete window[name];
@@ -231,9 +231,34 @@ li.busy .box i{border-color:var(--stage);animation:pulse .8s ease-in-out infinit
         return encodeURIComponent(k) + "=" + encodeURIComponent(params[k]);
       }).join("&");
       s.src = API + (API.indexOf("?") > -1 ? "&" : "?") + qs + "&callback=" + name;
-      s.onerror = function(){ cleanup(); reject(new Error("네트워크 오류")); };
+      s.onerror = function(){ cleanup(); reject(new Error("NETWORK")); };
       document.head.appendChild(s);
     });
+  }
+
+  /* 앱스크립트는 동시 요청에 약해서, 저장 요청을 한 줄로 세워 차례로 보낸다.
+     실패하면 한 번 더 시도한다(합계 최대 약 70초). */
+  var chain = Promise.resolve();
+  function call(params, opts){
+    if(DEMO) return Promise.resolve({ok:true, data:null, demo:true});
+    opts = opts || {};
+    var run = function(){
+      return jsonp(params, opts.timeout).catch(function(err){
+        if(opts.noRetry) throw err;
+        return new Promise(function(r){ setTimeout(r, 1200); }).then(function(){
+          return jsonp(params, opts.timeout);
+        });
+      });
+    };
+    if(opts.queue === false) return run();
+    chain = chain.then(run, run);
+    return chain;
+  }
+
+  function friendly(err){
+    if(err.message === "TIMEOUT") return "서버 응답이 늦습니다";
+    if(err.message === "NETWORK") return "네트워크 연결을 확인해 주세요";
+    return err.message;
   }
 
   function fallback(){
@@ -254,7 +279,7 @@ li.busy .box i{border-color:var(--stage);animation:pulse .8s ease-in-out infinit
       render();
       return;
     }
-    call({action:"list"}).then(function(res){
+    call({action:"list"}, {queue:false}).then(function(res){
       if(!res || !res.ok) throw new Error((res && res.error) || "알 수 없는 오류");
       state.items = res.data || [];
       if(!state.items.length){
@@ -267,7 +292,7 @@ li.busy .box i{border-color:var(--stage);animation:pulse .8s ease-in-out infinit
     }).catch(function(err){
       state.items = fallback();
       $("status").textContent = "불러오기 실패 · 로컬 목록 표시";
-      toast("불러오기 실패: " + err.message, true);
+      toast("불러오기 실패: " + friendly(err), true);
     }).then(function(){
       state.loading = false;
       render();
@@ -295,7 +320,7 @@ li.busy .box i{border-color:var(--stage);animation:pulse .8s ease-in-out infinit
       .catch(function(err){
         item.done[s] = prev;
         item.by[s] = prevBy;
-        toast("저장 실패: " + err.message + " · 체크를 되돌렸습니다", true);
+        toast("저장 실패: " + friendly(err) + " · 체크를 되돌렸습니다", true);
       })
       .then(function(){ render(); });
   }
