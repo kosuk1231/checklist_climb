@@ -618,12 +618,12 @@ body.editing .glist li:not(.gedit) b::after{content:"✎";font-size:11px;color:v
   /* ───────── API (JSONP) ───────── */
   var API = (window.CHECKLIST_API || "").trim();
   var seq = 0;
-  function call(params){
-    if(!API) return Promise.reject(new Error("config.js에 웹앱 URL이 없습니다"));
+
+  function jsonp(params, timeoutMs){
     return new Promise(function(res, rej){
       var name = "__gd" + (++seq) + "_" + Date.now();
       var el = document.createElement("script");
-      var timer = setTimeout(function(){ done(); rej(new Error("응답 시간 초과")); }, 20000);
+      var timer = setTimeout(function(){ done(); rej(new Error("TIMEOUT")); }, timeoutMs || 30000);
       function done(){ clearTimeout(timer); delete window[name]; if(el.parentNode) el.parentNode.removeChild(el); }
       window[name] = function(r){
         done();
@@ -634,10 +634,35 @@ body.editing .glist li:not(.gedit) b::after{content:"✎";font-size:11px;color:v
         return encodeURIComponent(k) + "=" + encodeURIComponent(params[k]);
       }).join("&");
       el.src = API + (API.indexOf("?") > -1 ? "&" : "?") + qs + "&callback=" + name;
-      el.onerror = function(){ done(); rej(new Error("네트워크 오류")); };
+      el.onerror = function(){ done(); rej(new Error("NETWORK")); };
       document.head.appendChild(el);
     });
   }
+
+  /* 저장 요청을 한 줄로 세우고, 실패하면 한 번 더 시도 */
+  var chain = Promise.resolve();
+  function call(params, opts){
+    if(!API) return Promise.reject(new Error("config.js에 웹앱 URL이 없습니다"));
+    opts = opts || {};
+    var run = function(){
+      return jsonp(params, opts.timeout).catch(function(err){
+        if(err.message !== "TIMEOUT" && err.message !== "NETWORK") throw err;
+        return new Promise(function(r){ setTimeout(r, 1200); }).then(function(){
+          return jsonp(params, opts.timeout);
+        });
+      });
+    };
+    if(opts.queue === false) return run();
+    chain = chain.then(run, run);
+    return chain;
+  }
+
+  function friendly(err){
+    if(err.message === "TIMEOUT") return "서버 응답이 늦습니다";
+    if(err.message === "NETWORK") return "네트워크 연결을 확인해 주세요";
+    return err.message;
+  }
+
   function admin(params){ params.key = state.key; return call(params); }
 
   function toast(m, kind){
@@ -651,7 +676,7 @@ body.editing .glist li:not(.gedit) b::after{content:"✎";font-size:11px;color:v
   /* 시트에서 최신 안내 내용 가져오기. 실패하면 파일에 박힌 기본값 유지 */
   function loadRemote(){
     if(!API) return Promise.resolve();
-    return call({action:"guide"}).then(function(d){
+    return call({action:"guide"}, {queue:false}).then(function(d){
       if(!d || d.empty || !d.tl || !d.tl.length) return;
       TL = d.tl.map(function(b){
         b.s = hhmm(b.s); b.e = hhmm(b.e); b.t = b.s + "~" + b.e;
@@ -1046,7 +1071,7 @@ body.editing .glist li:not(.gedit) b::after{content:"✎";font-size:11px;color:v
 
   /* 저장이 실패하면 시트 기준으로 화면을 다시 맞춘다 */
   function onSaveError(err){
-    toast(err.message, "bad");
+    toast("저장 실패: " + friendly(err), "bad");
     loadRemote().then(function(){ state.edit = null; state.addTo = null; renderAll(); });
   }
 
